@@ -1,57 +1,94 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FolderOpen, RefreshCw, Server, ShieldCheck, FileText } from 'lucide-react';
+import { Search, FolderOpen, RefreshCw, Server, ShieldCheck, Zap, ZapOff } from 'lucide-react';
 import PortGrid from './PortGrid';
-import { scanPorts } from '../services/mockService';
-import { PortInfo, ScanResult } from '../types';
+import { getScanData, checkBackendHealth } from '../services/api.ts';
+import { ScanResult } from '../types';
 import GeminiAdvisor from './GeminiAdvisor';
 
 const Dashboard: React.FC = () => {
   const [path, setPath] = useState('D:\\docker_apps');
   const [scanning, setScanning] = useState(false);
   const [results, setResults] = useState<ScanResult | null>(null);
+  
+  // New state for connectivity
+  const [isLive, setIsLive] = useState(false);
+  const [backendAvailable, setBackendAvailable] = useState(false);
+
+  // Check backend health on mount
+  useEffect(() => {
+    const checkHealth = async () => {
+      const alive = await checkBackendHealth();
+      setBackendAvailable(alive);
+      if (alive) setIsLive(true);
+    };
+    checkHealth();
+  }, []);
 
   const handleScan = async () => {
     setScanning(true);
     try {
-      // In a real app, this would call fetch(`http://localhost:8000/scan?path=${path}`)
-      const data = await scanPorts(path);
+      const data = await getScanData(path, isLive);
       setResults(data);
     } catch (e) {
       console.error(e);
+      alert("Scan failed. If using Live mode, ensure server.py is running.");
     } finally {
       setScanning(false);
     }
   };
 
   useEffect(() => {
-    // Initial scan simulation
+    // Initial scan
     handleScan();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isLive]); // Re-scan if mode changes
 
   return (
     <div className="space-y-6">
       {/* Controls */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-gray-900 p-4 rounded-xl border border-gray-800 flex flex-col md:flex-row gap-4 items-center">
-          <div className="flex-1 w-full relative">
-            <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input 
-              type="text" 
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-              placeholder="Scan Directory Path..."
-            />
-          </div>
-          <button 
-            onClick={handleScan}
-            disabled={scanning}
-            className="w-full md:w-auto px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
-            {scanning ? 'Scanning...' : 'Scan Ports'}
-          </button>
+        <div className="lg:col-span-2 space-y-4">
+             {/* Path and Scan Button */}
+            <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 flex flex-col md:flex-row gap-4 items-center">
+            <div className="flex-1 w-full relative">
+                <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input 
+                type="text" 
+                value={path}
+                onChange={(e) => setPath(e.target.value)}
+                className="w-full bg-gray-950 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                placeholder="Scan Directory Path (e.g., D:\docker_apps)"
+                />
+            </div>
+            <button 
+                onClick={handleScan}
+                disabled={scanning}
+                className="w-full md:w-auto px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                <RefreshCw className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
+                {scanning ? 'Scanning...' : 'Scan Ports'}
+            </button>
+            </div>
+            
+            {/* Mode Toggle */}
+            <div className="flex items-center gap-4 px-1">
+                 <button 
+                    onClick={() => setIsLive(!isLive)}
+                    className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
+                        isLive 
+                        ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800' 
+                        : 'bg-amber-900/30 text-amber-400 border-amber-800'
+                    }`}
+                 >
+                    {isLive ? <Zap className="w-3 h-3 fill-current" /> : <ZapOff className="w-3 h-3" />}
+                    {isLive ? 'Live Mode Active' : 'Simulation Mode'}
+                 </button>
+                 {!backendAvailable && isLive && (
+                     <span className="text-xs text-red-400 flex items-center gap-1">
+                         (Backend not detected on localhost:8000)
+                     </span>
+                 )}
+            </div>
         </div>
 
         <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 flex items-center justify-between">
@@ -78,12 +115,15 @@ const Dashboard: React.FC = () => {
 
              {/* Detailed List */}
              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-800">
+                <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 className="font-semibold text-gray-100">Occupied Ports Detail</h3>
+                    <span className="text-xs text-gray-500">
+                        {results?.occupiedPorts.length || 0} ports found
+                    </span>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                     <table className="w-full text-sm text-left">
-                        <thead className="text-xs text-gray-400 uppercase bg-gray-950/50">
+                        <thead className="text-xs text-gray-400 uppercase bg-gray-950/50 sticky top-0 backdrop-blur-sm">
                             <tr>
                                 <th className="px-6 py-3">Port</th>
                                 <th className="px-6 py-3">Service</th>
@@ -111,10 +151,11 @@ const Dashboard: React.FC = () => {
                                     </td>
                                 </tr>
                             ))}
-                            {!results && (
+                            {(!results || results.occupiedPorts.length === 0) && (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                                        Run a scan to see details
+                                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500 flex flex-col items-center justify-center gap-2">
+                                        <Search className="w-6 h-6 opacity-50" />
+                                        <span>No ports found or scan not run yet.</span>
                                     </td>
                                 </tr>
                             )}

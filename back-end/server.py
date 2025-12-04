@@ -1,7 +1,4 @@
 
-export const MOCK_DELAY = 1500;
-
-export const PYTHON_BACKEND_SCRIPT = `
 # server.py
 # Requires: pip install fastapi uvicorn psutil docker pyyaml
 import os
@@ -104,14 +101,15 @@ def health_check():
     return {"status": "ok", "message": "PortScout Backend is running"}
 
 @app.get("/scan")
-def scan_ports(path: str = "D:\\docker_apps"):
+def scan_ports(path: str = r"D:\docker_apps"):
     print(f"Scanning path: {path}")
     system = get_system_ports()
     docker_active = get_docker_ports()
     file_ports = scan_compose_files(path)
     
     # Merge and deduplicate based on port number
-    all_occupied = system + docker_active + file_ports
+    # Prioritize Docker > System > File
+    all_occupied = docker_active + system + file_ports
     
     # Simple dedupe keeping the first occurrence (System > Docker > File)
     seen_ports = set()
@@ -130,4 +128,3 @@ def scan_ports(path: str = "D:\\docker_apps"):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-`;
