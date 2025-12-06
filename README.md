@@ -1,6 +1,6 @@
-# PortScout - Advanced Port Manager
+# PortRegistry - Advanced Port Manager
 
-PortScout is a powerful utility for developers to manage local ports. It provides a unified view of system processes, Docker containers, and static Docker Compose files, allowing you to identify conflicts and manage your development environment efficiently.
+PortRegistry is a powerful utility for developers to manage local ports. It provides a unified view of system processes, Docker containers, and static Docker Compose files, allowing you to identify conflicts and manage your development environment efficiently.
 
 ## 🚀 Key Features
 
@@ -49,7 +49,7 @@ This app uses a **React Frontend** for the UI and a **Python Sidecar** for syste
 
 ## 🛠️ Building the Desktop App
 
-You can package PortScout into a single portable `.exe` file that contains both the backend and frontend.
+You can package PortRegistry into a single portable `.exe` file that contains both the backend and frontend.
 
 1.  **Build Frontend & Backend**:
     Run the provided PowerShell script (Windows):
@@ -59,18 +59,18 @@ You can package PortScout into a single portable `.exe` file that contains both 
     *Or manually:*
     ```bash
     npm run build
-    pyinstaller --name portscout --noconsole --onefile --add-data "dist;dist" back-end/server.py
+    pyinstaller --name portregistry --noconsole --onefile --add-data "dist;dist" back-end/server.py
     ```
 
 2.  **Run**:
     The executable is created in the `dist/` folder.
     ```bash
-    ./dist/portscout.exe
+    ./dist/portregistry.exe
     ```
 
 ## ⚙️ Configuration
 
-PortScout supports configuration via `.env` files.
+PortRegistry supports configuration via `.env` files.
 
 1.  Create a `.env` file next to `server.py` or the executable.
 2.  See `.env_example` for available options.

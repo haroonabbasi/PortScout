@@ -16,7 +16,7 @@ const App: React.FC = () => {
             <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white">
               P
             </div>
-            PortScout
+            PortRegistry
           </h1>
           <p className="text-xs text-gray-500 mt-2">Docker & System Port Manager</p>
         </div>

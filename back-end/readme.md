@@ -1,6 +1,6 @@
-# PortScout Backend
+# PortRegistry Backend
 
-The Python sidecar for PortScout. It bridges the gap between the web UI and your operating system.
+The Python sidecar for PortRegistry. It bridges the gap between the web UI and your operating system.
 
 ## Features
 - **FastAPI Server**: Exposes endpoints for scanning and process management.

@@ -23,7 +23,7 @@ load_dotenv()
 app = FastAPI()
 
 # Parse arguments for port
-parser = argparse.ArgumentParser(description='PortScout Backend')
+parser = argparse.ArgumentParser(description='PortRegistry Backend')
 parser.add_argument('--port', type=int, default=int(os.environ.get("PORT", 8000)), help='Port to run the server on')
 # Only parse known args to avoid conflict with uvicorn's own args if needed, 
 # though usually we run this script directly.
@@ -137,7 +137,7 @@ def scan_compose_files(root_dir):
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok", "message": "PortScout Backend is running"}
+    return {"status": "ok", "message": "PortRegistry Backend is running"}
 
 @app.get("/scan")
 def scan_ports(path: str = r"D:\docker_apps"):
@@ -232,7 +232,7 @@ async def custom_404_handler(request, __):
 
 def start_server():
     import uvicorn
-    print(f"Starting PortScout Backend on port {args.port}...")
+    print(f"Starting PortRegistry Backend on port {args.port}...")
     # Run uvicorn programmatically
     uvicorn.run(app, host="127.0.0.1", port=args.port)
 
@@ -251,7 +251,7 @@ if __name__ == "__main__":
     url = f"http://127.0.0.1:{args.port}"
     
     webview.create_window(
-        title="PortScout",
+        title="PortRegistry",
         url=url,
         width=1200,
         height=800,

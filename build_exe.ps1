@@ -5,6 +5,7 @@ npm run build
 # --noconsole: Hides the command prompt
 # --onefile: Packages everything into a single .exe
 # --add-data: Bundles the frontend 'dist' folder
-pyinstaller --name portscout --noconsole --onefile --add-data "dist;dist" back-end/server.py
+# pyinstaller --name portregistry --noconsole --onefile --add-data "dist;dist" back-end/server.py
+pyinstaller portregistry.spec --clean
 
-Write-Host "Build Complete! Executable is located at dist/portscout.exe"
+Write-Host "Build Complete! Executable is located at dist/portregistry.exe"
