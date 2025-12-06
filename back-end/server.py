@@ -14,6 +14,8 @@ from pydantic import BaseModel
 import argparse
 import sys
 from dotenv import load_dotenv
+import threading
+import webview
 
 # Load environment variables from .env file
 load_dotenv()
@@ -207,8 +209,14 @@ def kill_process(req: KillRequest):
         raise HTTPException(status_code=400, detail="Invalid source for kill operation")
 
 # Serve static files (Frontend)
-# We assume 'dist' is at the project root, so up one level from back-end/
-DIST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dist")
+if getattr(sys, 'frozen', False):
+    # If running as executable
+    BASE_DIR = sys._MEIPASS
+else:
+    # If running as script (assuming server.py is in back-end/)
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+DIST_DIR = os.path.join(BASE_DIR, "dist")
 
 if os.path.exists(DIST_DIR):
     app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="static")
@@ -222,7 +230,33 @@ async def custom_404_handler(request, __):
         return FileResponse(os.path.join(DIST_DIR, "index.html"))
     return {"detail": "Not found"}
 
-if __name__ == "__main__":
+def start_server():
     import uvicorn
-    print(f"Starting PortScout on port {args.port}...")
-    uvicorn.run(app, host="0.0.0.0", port=args.port)
+    print(f"Starting PortScout Backend on port {args.port}...")
+    # Run uvicorn programmatically
+    uvicorn.run(app, host="127.0.0.1", port=args.port)
+
+if __name__ == "__main__":
+    # 1. Start Backend in a separate thread
+    t = threading.Thread(target=start_server, daemon=True)
+    t.start()
+
+    # 2. Wait a bit for server to start (optional, but good for UX)
+    # real production code might poll the health check endpoint
+    import time
+    time.sleep(1)
+
+    # 3. Create the Native Window
+    # Point it to localhost
+    url = f"http://127.0.0.1:{args.port}"
+    
+    webview.create_window(
+        title="PortScout",
+        url=url,
+        width=1200,
+        height=800,
+        resizable=True
+    )
+
+    # 4. Start the GUI loop
+    webview.start()
