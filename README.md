@@ -86,3 +86,8 @@ GEMINI_API_KEY=your_key_here
 
 *   **Docker Error**: Ensure Docker Desktop is running.
 *   **"Backend not detected"**: If running in dev mode, ensure `server.py` is running on port 8000.
+
+## Screenshots
+
+![Main Page](./screenshots/portscout-docker-port-manager-screenshot1.png)
+![Server setup Page](./screenshots/portscout-docker-port-manager-screenshot2.png)
