@@ -5,9 +5,10 @@ import os
 import psutil
 import yaml
 import docker
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict
+from typing import List, Dict, Optional
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -36,7 +37,8 @@ def get_system_ports():
                 ports.append({
                     "port": conn.laddr.port, 
                     "service": "System Process", 
-                    "source": "system"
+                    "source": "system",
+                    "id": str(conn.pid)
                 })
     except Exception as e:
         print(f"System Scan Error: {e}")
@@ -73,7 +75,8 @@ def get_docker_ports():
                             ports.append({
                                 "port": int(host_port), 
                                 "service": f"Container: {container.name} ({port_key})", 
-                                "source": "docker_active"
+                                "source": "docker_active",
+                                "id": container.id
                             })
     except Exception as e:
         print(f"Docker Error: {e}")
@@ -144,6 +147,49 @@ def scan_ports(path: str = r"D:\docker_apps"):
     unique_ports.sort(key=lambda x: x['port'])
     
     return {"occupied": unique_ports}
+
+class KillRequest(BaseModel):
+    port: int
+    source: str
+    id: Optional[str] = None
+
+@app.post("/kill")
+def kill_process(req: KillRequest):
+    print(f"Received kill request: {req}")
+    
+    if req.source == 'system':
+        if not req.id:
+            raise HTTPException(status_code=400, detail="PID (id) is required for system processes")
+        
+        try:
+            pid = int(req.id)
+            if psutil.pid_exists(pid):
+                p = psutil.Process(pid)
+                p.terminate()
+                return {"status": "success", "message": f"Process {pid} terminated"}
+            else:
+                return {"status": "error", "message": f"Process {pid} not found"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+            
+    elif req.source == 'docker_active':
+        if not req.id:
+            raise HTTPException(status_code=400, detail="Container ID is required")
+            
+        if not client:
+             raise HTTPException(status_code=503, detail="Docker client unavailable")
+
+        try:
+            container = client.containers.get(req.id)
+            container.stop()
+            return {"status": "success", "message": f"Container {req.id[:12]} stopped"}
+        except docker.errors.NotFound:
+            return {"status": "error", "message": "Container not found"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+            
+    else:
+        raise HTTPException(status_code=400, detail="Invalid source for kill operation")
 
 if __name__ == "__main__":
     import uvicorn
