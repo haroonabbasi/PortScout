@@ -1,20 +1,33 @@
-# README.md
+# PortRegistry Backend
 
-## Installation
+The Python sidecar for PortRegistry. It bridges the gap between the web UI and your operating system.
 
-1. Install Python 3.9+ if you haven't already.
-2. Install the required libraries:
-   ```
-   pip install -r requirements.txt
-   ```
-   (Make sure requirements.txt is in the same folder)
+## Features
+- **FastAPI Server**: Exposes endpoints for scanning and process management.
+- **PyWebView**: Launches the application in a native window.
+- **Static File Serving**: Serves the React frontend (when built).
+- **Process Control**: Uses `psutil` and `docker` SDK to kill/stop processes.
 
-## Running
+## Setup
 
-1. Open a terminal where you saved the file
-2. Run:
-   ```
-   python server.py
-   ```
-3. The API will start at http://localhost:8000
-4. Go back to the Dashboard and toggle "Live Mode"
+1.  Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+2.  Run the server:
+    ```bash
+    python server.py
+    ```
+    *This will launch the Desktop App window.*
+
+## arguments
+
+- `--port`: Specify the port to run on (default: `8000` or from `.env`).
+
+## Environment Variables
+Create a `.env` file in this directory to configure the server.
+
+```ini
+PORT=9000
+```

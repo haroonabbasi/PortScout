@@ -1,5 +1,5 @@
 {
-  "name": "PortScout",
+  "name": "PortRegistry",
   "description": "A comprehensive port management utility that scans active system ports, Docker containers, and local compose files to identify used ports and suggest available ones. Includes a Gemini-powered port strategy advisor.",
   "requestFramePermissions": []
 }

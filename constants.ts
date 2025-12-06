@@ -101,7 +101,7 @@ def scan_compose_files(root_dir):
 
 @app.get("/")
 def health_check():
-    return {"status": "ok", "message": "PortScout Backend is running"}
+    return {"status": "ok", "message": "PortRegistry Backend is running"}
 
 @app.get("/scan")
 def scan_ports(path: str = "D:\\docker_apps"):
