@@ -57,3 +57,10 @@ To use the AI Advisor features:
 *   **Connection Failed**: Ensure `server.py` is running and the console says `Uvicorn running on http://0.0.0.0:8000`.
 *   **Docker Error**: Ensure Docker Desktop is running if you want to scan active containers.
 *   **CORS Error**: The provided `server.py` includes CORS headers to allow the browser to talk to localhost. Ensure you didn't modify the `allow_origins` section.
+
+## Screenshots
+
+## Screenshot
+
+![Main Page](./screenshots/portscout-docker-port-manager-screenshot1.png)
+![Server setup Page](./screenshots/portscout-docker-port-manager-screenshot2.png)
