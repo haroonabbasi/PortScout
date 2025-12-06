@@ -6,11 +6,22 @@ import psutil
 import yaml
 import docker
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from typing import List, Dict, Optional
 from pydantic import BaseModel
+import argparse
+import sys
 
 app = FastAPI()
+
+# Parse arguments for port
+parser = argparse.ArgumentParser(description='PortScout Backend')
+parser.add_argument('--port', type=int, default=8000, help='Port to run the server on')
+# Only parse known args to avoid conflict with uvicorn's own args if needed, 
+# though usually we run this script directly.
+args, unknown = parser.parse_known_args()
 
 # Allow CORS for local development
 app.add_middleware(
@@ -118,7 +129,7 @@ def scan_compose_files(root_dir):
                     print(f"Error parsing {full_path}: {e}")
     return found_ports
 
-@app.get("/")
+@app.get("/api/health")
 def health_check():
     return {"status": "ok", "message": "PortScout Backend is running"}
 
@@ -191,6 +202,23 @@ def kill_process(req: KillRequest):
     else:
         raise HTTPException(status_code=400, detail="Invalid source for kill operation")
 
+# Serve static files (Frontend)
+# We assume 'dist' is at the project root, so up one level from back-end/
+DIST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dist")
+
+if os.path.exists(DIST_DIR):
+    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="static")
+
+@app.exception_handler(404)
+async def custom_404_handler(request, __):
+    # Fallback to index.html for SPA routing if file not found and strictly 404
+    # But StaticFiles with html=True usually handles root. 
+    # For client-side routing deep links, we might need a catch-all.
+    if os.path.exists(os.path.join(DIST_DIR, "index.html")):
+        return FileResponse(os.path.join(DIST_DIR, "index.html"))
+    return {"detail": "Not found"}
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    print(f"Starting PortScout on port {args.port}...")
+    uvicorn.run(app, host="0.0.0.0", port=args.port)

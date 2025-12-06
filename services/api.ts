@@ -1,14 +1,12 @@
 import { ScanResult } from '../types';
 import { scanPorts as mockScanPorts } from './mockService';
 
-const API_URL = 'http://localhost:8000';
-
 export const checkBackendHealth = async (): Promise<boolean> => {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
 
-    const res = await fetch(`${API_URL}/`, { signal: controller.signal });
+    const res = await fetch(`/`, { signal: controller.signal });
     clearTimeout(timeoutId);
     return res.ok;
   } catch (e) {
@@ -17,7 +15,7 @@ export const checkBackendHealth = async (): Promise<boolean> => {
 };
 
 export const killProcess = async (port: number, source: string, id?: string): Promise<boolean> => {
-  const res = await fetch(`${API_URL}/kill`, {
+  const res = await fetch(`/kill`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -35,7 +33,7 @@ export const killProcess = async (port: number, source: string, id?: string): Pr
 };
 
 export const scanPortsLive = async (path: string): Promise<ScanResult> => {
-  const res = await fetch(`${API_URL}/scan?path=${encodeURIComponent(path)}`);
+  const res = await fetch(`/scan?path=${encodeURIComponent(path)}`);
   if (!res.ok) {
     throw new Error('Failed to fetch from Python backend');
   }
