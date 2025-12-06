@@ -90,4 +90,3 @@ GEMINI_API_KEY=your_key_here
 ## Screenshots
 
 ![Main Page](./screenshots/portscout-docker-port-manager-screenshot1.png)
-![Server setup Page](./screenshots/portscout-docker-port-manager-screenshot2.png)
