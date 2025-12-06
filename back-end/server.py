@@ -22,8 +22,10 @@ app.add_middleware(
 # Initialize Docker client (fails gracefully if Docker not running)
 try:
     client = docker.from_env()
-except Exception:
+    print("Docker client initialized successfully.")
+except Exception as e:
     client = None
+    print(f"Warning: Docker client could not be initialized. Active containers will not be scanned. Error: {e}")
 
 def get_system_ports():
     ports = []
@@ -47,15 +49,32 @@ def get_docker_ports():
     try:
         containers = client.containers.list()
         for container in containers:
-            p = container.attrs['NetworkSettings']['Ports']
-            for port_key in p:
-                if p[port_key]:
-                    host_port = p[port_key][0]['HostPort']
-                    ports.append({
-                        "port": int(host_port), 
-                        "service": f"Container: {container.name}", 
-                        "source": "docker_active"
-                    })
+            # Reload ensures we get fresh attributes including mapped ports
+            try:
+                container.reload()
+            except:
+                pass
+            
+            # Safely get ports
+            net_settings = container.attrs.get('NetworkSettings', {})
+            p = net_settings.get('Ports', {})
+            
+            if not p:
+                continue
+
+            # Iterate through all port mappings
+            for port_key, bindings in p.items():
+                # port_key is internal port (e.g., "80/tcp")
+                # bindings is a list of dicts (e.g., [{'HostIp': '0.0.0.0', 'HostPort': '8080'}])
+                if bindings:
+                    for binding in bindings:
+                        host_port = binding.get('HostPort')
+                        if host_port:
+                            ports.append({
+                                "port": int(host_port), 
+                                "service": f"Container: {container.name} ({port_key})", 
+                                "source": "docker_active"
+                            })
     except Exception as e:
         print(f"Docker Error: {e}")
     return ports
@@ -107,11 +126,12 @@ def scan_ports(path: str = r"D:\docker_apps"):
     docker_active = get_docker_ports()
     file_ports = scan_compose_files(path)
     
-    # Merge and deduplicate based on port number
-    # Prioritize Docker > System > File
+    # Priority: Docker Active > System > File
+    # This ensures that if a port is mapped by Docker, it shows as Docker (Blue),
+    # even if the System also sees the listening process (which is common).
     all_occupied = docker_active + system + file_ports
     
-    # Simple dedupe keeping the first occurrence (System > Docker > File)
+    # Deduplicate keeping the first occurrence
     seen_ports = set()
     unique_ports = []
     
