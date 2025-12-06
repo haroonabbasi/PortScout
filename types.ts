@@ -3,6 +3,7 @@ export interface PortInfo {
   service: string;
   source: 'system' | 'docker_active' | 'docker_file';
   path?: string;
+  id?: string;
   status: 'occupied' | 'free';
 }
 
