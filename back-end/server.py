@@ -13,12 +13,16 @@ from typing import List, Dict, Optional
 from pydantic import BaseModel
 import argparse
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI()
 
 # Parse arguments for port
 parser = argparse.ArgumentParser(description='PortScout Backend')
-parser.add_argument('--port', type=int, default=8000, help='Port to run the server on')
+parser.add_argument('--port', type=int, default=int(os.environ.get("PORT", 8000)), help='Port to run the server on')
 # Only parse known args to avoid conflict with uvicorn's own args if needed, 
 # though usually we run this script directly.
 args, unknown = parser.parse_known_args()
