@@ -60,7 +60,5 @@ To use the AI Advisor features:
 
 ## Screenshots
 
-## Screenshot
-
 ![Main Page](./screenshots/portscout-docker-port-manager-screenshot1.png)
 ![Server setup Page](./screenshots/portscout-docker-port-manager-screenshot2.png)
