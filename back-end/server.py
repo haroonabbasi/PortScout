@@ -140,12 +140,19 @@ def scan_compose_files(root_dir):
 def health_check():
     return {"status": "ok", "message": "PortRegistry Backend is running"}
 
-@app.get("/scan")
-def scan_ports(path: str = r"D:\docker_apps"):
-    print(f"Scanning path: {path}")
+class ScanRequest(BaseModel):
+    paths: List[str]
+
+@app.post("/scan")
+def scan_ports(req: ScanRequest):
+    print(f"Scanning paths: {req.paths}")
     system = get_system_ports()
     docker_active = get_docker_ports()
-    file_ports = scan_compose_files(path)
+    
+    file_ports = []
+    for path in req.paths:
+        file_ports.extend(scan_compose_files(path))
+    
     
     # Priority: Docker Active > System > File
     # This ensures that if a port is mapped by Docker, it shows as Docker (Blue),

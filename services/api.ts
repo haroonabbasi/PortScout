@@ -50,8 +50,15 @@ export const openResource = async (path: string, type: 'file' | 'location'): Pro
   return data.status === 'success';
 };
 
-export const scanPortsLive = async (path: string): Promise<ScanResult> => {
-  const res = await fetch(`/scan?path=${encodeURIComponent(path)}`);
+export const scanPortsLive = async (paths: string[]): Promise<ScanResult> => {
+  const res = await fetch(`/scan`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ paths }),
+  });
+
   if (!res.ok) {
     throw new Error('Failed to fetch from Python backend');
   }
