@@ -122,7 +122,7 @@ const Dashboard: React.FC<DashboardProps> = ({ ranges = [{ start: 3000, label: '
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 space-y-4">
                     {/* Path and Scan Button */}
-                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 flex flex-col gap-4">
+                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 flex flex-col gap-4" data-tour="path-input">
                         <div className="flex flex-col gap-2">
                             <label className="text-xs text-gray-500 font-medium ml-1">Scan Locations</label>
                             <div className="flex flex-wrap gap-2 min-h-[32px]">
@@ -160,6 +160,7 @@ const Dashboard: React.FC<DashboardProps> = ({ ranges = [{ start: 3000, label: '
                                 onClick={handleScan}
                                 disabled={scanning || paths.length === 0}
                                 className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                data-tour="scan-button"
                             >
                                 <RefreshCw className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
                                 {scanning ? 'Scanning...' : 'Scan Ports'}
@@ -215,8 +216,8 @@ const Dashboard: React.FC<DashboardProps> = ({ ranges = [{ start: 3000, label: '
                             <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Files</div>
                         </div>
                     </div>
-                    {results && ranges.map((range) => (
-                        <div key={range.start} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                    {results && ranges.map((range, idx) => (
+                        <div key={range.start} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden" data-tour={idx === 0 ? "port-grid" : undefined}>
                             <button
                                 onClick={() => toggleCollapse(range.start)}
                                 className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-800/50 transition-colors"
@@ -238,7 +239,7 @@ const Dashboard: React.FC<DashboardProps> = ({ ranges = [{ start: 3000, label: '
                     ))}
 
                     {/* Detailed List */}
-                    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden" data-tour="detail-table">
                         <div className="px-6 py-4 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-4">
                                 <h3 className="font-semibold text-gray-100">Occupied Ports Detail</h3>
@@ -334,7 +335,7 @@ const Dashboard: React.FC<DashboardProps> = ({ ranges = [{ start: 3000, label: '
 
                 {/* Right Column: Recommendations & AI */}
                 <div className="space-y-6">
-                    <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
+                    <div className="bg-gray-900 p-6 rounded-xl border border-gray-800" data-tour="recommended-ports">
                         <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
                             <Server className="w-4 h-4 text-emerald-500" />
                             Recommended Free Ports
@@ -362,7 +363,7 @@ const Dashboard: React.FC<DashboardProps> = ({ ranges = [{ start: 3000, label: '
                         </div>
                     </div>
 
-                    {results && <GeminiAdvisor occupiedPorts={results.occupiedPorts} />}
+                    {/* {results && <GeminiAdvisor occupiedPorts={results.occupiedPorts} />} */}
                 </div>
             </div>
         </div>
