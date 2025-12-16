@@ -17,11 +17,11 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'PortRegistry'),
             StringStruct('FileDescription', 'PortRegistry - Advanced Port Manager'),
-            StringStruct('FileVersion', '1.0.0'),
+            StringStruct('FileVersion', '1.0.5'),
             StringStruct('InternalName', 'portregistry'),
             StringStruct('OriginalFilename', 'portregistry.exe'),
             StringStruct('ProductName', 'PortRegistry'),
-            StringStruct('ProductVersion', '1.0.0'),
+            StringStruct('ProductVersion', '1.0.5'),
             StringStruct('LegalCopyright', '© 2025 Haroon')
           ]
         )

@@ -16,16 +16,8 @@ const PortGrid: React.FC<PortGridProps> = ({ occupiedPorts, startRange = 3000 })
 
   return (
     <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 shadow-sm">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-100">Port Map ({startRange} - {startRange + 99})</h3>
-        <div className="flex gap-4 text-xs">
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-emerald-500"></span> Free</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500"></span> System</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-500"></span> Docker</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-amber-500"></span> Files</div>
-        </div>
-      </div>
-      
+
+
       <div className="grid grid-cols-10 gap-2">
         {portsToDisplay.map(port => {
           const info = getPortStatus(port);
@@ -40,7 +32,7 @@ const PortGrid: React.FC<PortGridProps> = ({ occupiedPorts, startRange = 3000 })
           }
 
           return (
-            <div 
+            <div
               key={port}
               className={`
                 aspect-square rounded flex flex-col items-center justify-center text-[10px] font-mono border cursor-help transition-all

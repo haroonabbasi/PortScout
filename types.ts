@@ -17,6 +17,7 @@ export interface ScanResult {
 export enum AppView {
   DASHBOARD = 'DASHBOARD',
   PYTHON_SETUP = 'PYTHON_SETUP',
+  SETTINGS = 'SETTINGS',
   GEMINI_INSIGHTS = 'GEMINI_INSIGHTS'
 }
 

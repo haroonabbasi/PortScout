@@ -1,14 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FolderOpen, RefreshCw, Server, ShieldCheck, Zap, ZapOff, FileText, Folder } from 'lucide-react';
+import { Search, FolderOpen, RefreshCw, Server, ShieldCheck, Zap, ZapOff, FileText, Folder, ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
 import PortGrid from './PortGrid';
 import { getScanData, checkBackendHealth, killProcess, openResource } from '../services/api.ts';
 import { ScanResult } from '../types';
 import GeminiAdvisor from './GeminiAdvisor';
+import { PortRangeConfig } from './Settings';
 
-const Dashboard: React.FC = () => {
-    const [path, setPath] = useState('D:\\docker_apps');
+interface DashboardProps {
+    ranges?: PortRangeConfig[];
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ ranges = [{ start: 3000, label: 'Default' }, { start: 8000, label: 'Default' }] }) => {
+    const [paths, setPaths] = useState<string[]>(['D:\\docker_apps']);
+    const [newPath, setNewPath] = useState('');
     const [scanning, setScanning] = useState(false);
     const [results, setResults] = useState<ScanResult | null>(null);
+    const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
+
+    const toggleCollapse = (startPort: number) => {
+        setCollapsed(prev => ({ ...prev, [startPort]: !prev[startPort] }));
+    };
+
+    const handleAddPath = () => {
+        if (newPath && !paths.includes(newPath)) {
+            setPaths([...paths, newPath]);
+            setNewPath('');
+        }
+    };
+
+    const handleRemovePath = (pathToRemove: string) => {
+        setPaths(paths.filter(p => p !== pathToRemove));
+    };
 
     // New state for connectivity
     const [isLive, setIsLive] = useState(true);
@@ -31,7 +53,7 @@ const Dashboard: React.FC = () => {
     const handleScan = async () => {
         setScanning(true);
         try {
-            const data = await getScanData(path, isLive);
+            const data = await getScanData(paths, isLive);
             setResults(data);
         } catch (e) {
             console.error(e);
@@ -100,25 +122,50 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 space-y-4">
                     {/* Path and Scan Button */}
-                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 flex flex-col md:flex-row gap-4 items-center">
-                        <div className="flex-1 w-full relative">
-                            <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                            <input
-                                type="text"
-                                value={path}
-                                onChange={(e) => setPath(e.target.value)}
-                                className="w-full bg-gray-950 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-                                placeholder="Scan Directory Path (e.g., D:\docker_apps)"
-                            />
+                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 flex flex-col gap-4" data-tour="path-input">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs text-gray-500 font-medium ml-1">Scan Locations</label>
+                            <div className="flex flex-wrap gap-2 min-h-[32px]">
+                                {paths.map((p, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-gray-950 border border-gray-700 rounded-full text-xs text-gray-200 group">
+                                        <FolderOpen className="w-3 h-3 text-emerald-500" />
+                                        <span className="max-w-[150px] truncate" title={p}>{p}</span>
+                                        <button onClick={() => handleRemovePath(p)} className="hover:text-red-400 opacity-50 group-hover:opacity-100 transition-opacity">
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                        <button
-                            onClick={handleScan}
-                            disabled={scanning}
-                            className="w-full md:w-auto px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <RefreshCw className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
-                            {scanning ? 'Scanning...' : 'Scan Ports'}
-                        </button>
+
+                        <div className="flex gap-2">
+                            <div className="flex-1 relative">
+                                <input
+                                    type="text"
+                                    value={newPath}
+                                    onChange={(e) => setNewPath(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddPath()}
+                                    className="w-full bg-gray-950 border border-gray-700 rounded-lg py-2 px-4 text-sm text-gray-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                                    placeholder="Add directory path (e.g., D:\projects)..."
+                                />
+                            </div>
+                            <button
+                                onClick={handleAddPath}
+                                disabled={!newPath}
+                                className="bg-gray-800 hover:bg-gray-700 text-gray-200 px-3 rounded-lg flex items-center justify-center disabled:opacity-50 transition-colors"
+                            >
+                                <Plus className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={handleScan}
+                                disabled={scanning || paths.length === 0}
+                                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                data-tour="scan-button"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
+                                {scanning ? 'Scanning...' : 'Scan Ports'}
+                            </button>
+                        </div>
                     </div>
 
                     {/* Mode Toggle */}
@@ -159,12 +206,40 @@ const Dashboard: React.FC = () => {
 
                 {/* Left Column: List */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Port Visualization */}
-                    {results && <PortGrid occupiedPorts={results.occupiedPorts} startRange={3000} />}
-                    {results && <PortGrid occupiedPorts={results.occupiedPorts} startRange={8000} />}
+                    {/* Port Visualization - Dynamic Ranges */}
+                    <div className="flex items-center justify-between mb-2 px-1">
+                        <h3 className="text-sm font-medium text-gray-400">Port Maps</h3>
+                        <div className="flex gap-4 text-[10px] uppercase font-bold tracking-wider">
+                            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Free</div>
+                            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500"></span> System</div>
+                            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Docker</div>
+                            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Files</div>
+                        </div>
+                    </div>
+                    {results && ranges.map((range, idx) => (
+                        <div key={range.start} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden" data-tour={idx === 0 ? "port-grid" : undefined}>
+                            <button
+                                onClick={() => toggleCollapse(range.start)}
+                                className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-800/50 transition-colors"
+                            >
+                                <div>
+                                    <h3 className="font-semibold text-gray-100 flex items-center gap-2">
+                                        {range.label} <span className="text-gray-500 font-normal">({range.start} - {range.start + 99})</span>
+                                    </h3>
+                                </div>
+                                {collapsed[range.start] ? <ChevronRight className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+                            </button>
+
+                            {!collapsed[range.start] && (
+                                <div className="p-6 border-t border-gray-800">
+                                    <PortGrid occupiedPorts={results.occupiedPorts} startRange={range.start} />
+                                </div>
+                            )}
+                        </div>
+                    ))}
 
                     {/* Detailed List */}
-                    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden" data-tour="detail-table">
                         <div className="px-6 py-4 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-4">
                                 <h3 className="font-semibold text-gray-100">Occupied Ports Detail</h3>
@@ -210,20 +285,20 @@ const Dashboard: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3 text-gray-500 text-xs truncate max-w-[200px]" title={port.path || ''}>
-                                                <div className="flex flex-col gap-1">
-                                                    <span>{port.path ? port.path.split('\\').pop() : '-'}</span>
+                                                <div className="flex flex-col gap-1.5 align-start">
+                                                    <span className="font-mono text-gray-300">{port.path ? port.path.split('\\').pop() : '-'}</span>
                                                     {port.path && (
-                                                        <div className="flex gap-2">
+                                                        <div className="flex flex-wrap gap-2">
                                                             <button
                                                                 onClick={() => handleOpen(port.path!, 'file')}
-                                                                className="flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline"
+                                                                className="flex items-center gap-1.5 px-2 py-1 bg-emerald-900/30 text-emerald-400 text-[10px] font-medium rounded hover:bg-emerald-900/50 transition-colors border border-emerald-900/50"
                                                                 title="Open File"
                                                             >
                                                                 <FileText className="w-3 h-3" /> File
                                                             </button>
                                                             <button
                                                                 onClick={() => handleOpen(port.path!, 'location')}
-                                                                className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 hover:underline"
+                                                                className="flex items-center gap-1.5 px-2 py-1 bg-blue-900/30 text-blue-400 text-[10px] font-medium rounded hover:bg-blue-900/50 transition-colors border border-blue-900/50"
                                                                 title="Open Location"
                                                             >
                                                                 <Folder className="w-3 h-3" /> Folder
@@ -260,7 +335,7 @@ const Dashboard: React.FC = () => {
 
                 {/* Right Column: Recommendations & AI */}
                 <div className="space-y-6">
-                    <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
+                    <div className="bg-gray-900 p-6 rounded-xl border border-gray-800" data-tour="recommended-ports">
                         <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
                             <Server className="w-4 h-4 text-emerald-500" />
                             Recommended Free Ports
@@ -288,7 +363,7 @@ const Dashboard: React.FC = () => {
                         </div>
                     </div>
 
-                    {results && <GeminiAdvisor occupiedPorts={results.occupiedPorts} />}
+                    {/* {results && <GeminiAdvisor occupiedPorts={results.occupiedPorts} />} */}
                 </div>
             </div>
         </div>
