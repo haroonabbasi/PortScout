@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/scan': 'http://127.0.0.1:8000',
         '/kill': 'http://127.0.0.1:8000',
+        '/open': 'http://127.0.0.1:8000'
       }
     },
     plugins: [react()],

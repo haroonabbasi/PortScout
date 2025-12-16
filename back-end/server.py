@@ -13,6 +13,7 @@ from typing import List, Dict, Optional
 from pydantic import BaseModel
 import argparse
 import sys
+import subprocess
 from dotenv import load_dotenv
 import threading
 import webview
@@ -207,6 +208,25 @@ def kill_process(req: KillRequest):
             
     else:
         raise HTTPException(status_code=400, detail="Invalid source for kill operation")
+
+class OpenRequest(BaseModel):
+    path: str
+    type: str # 'file' or 'location'
+
+@app.post("/open")
+def open_resource(req: OpenRequest):
+    if not os.path.exists(req.path):
+         raise HTTPException(status_code=404, detail="File path not found")
+
+    try:
+        if req.type == 'file':
+            os.startfile(req.path)
+        elif req.type == 'location':
+            # Open explorer with file selected
+            subprocess.Popen(['explorer', '/select,', req.path])
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Serve static files (Frontend)
 if getattr(sys, 'frozen', False):

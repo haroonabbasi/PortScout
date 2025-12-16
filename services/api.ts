@@ -32,6 +32,24 @@ export const killProcess = async (port: number, source: string, id?: string): Pr
   return data.status === 'success';
 };
 
+export const openResource = async (path: string, type: 'file' | 'location'): Promise<boolean> => {
+  const res = await fetch(`/open`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ path, type }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.detail || 'Failed to open resource');
+  }
+
+  const data = await res.json();
+  return data.status === 'success';
+};
+
 export const scanPortsLive = async (path: string): Promise<ScanResult> => {
   const res = await fetch(`/scan?path=${encodeURIComponent(path)}`);
   if (!res.ok) {

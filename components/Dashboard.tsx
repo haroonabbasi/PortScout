@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FolderOpen, RefreshCw, Server, ShieldCheck, Zap, ZapOff } from 'lucide-react';
+import { Search, FolderOpen, RefreshCw, Server, ShieldCheck, Zap, ZapOff, FileText, Folder } from 'lucide-react';
 import PortGrid from './PortGrid';
-import { getScanData, checkBackendHealth, killProcess } from '../services/api.ts';
+import { getScanData, checkBackendHealth, killProcess, openResource } from '../services/api.ts';
 import { ScanResult } from '../types';
 import GeminiAdvisor from './GeminiAdvisor';
 
@@ -58,6 +58,16 @@ const Dashboard: React.FC = () => {
             }
         } catch (e: any) {
             alert(`Error: ${e.message}`);
+        }
+    };
+
+
+
+    const handleOpen = async (path: string, type: 'file' | 'location') => {
+        try {
+            await openResource(path, type);
+        } catch (e: any) {
+            alert(`Error opening resource: ${e.message}`);
         }
     };
 
@@ -200,7 +210,27 @@ const Dashboard: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3 text-gray-500 text-xs truncate max-w-[200px]" title={port.path || ''}>
-                                                {port.path ? port.path.split('\\').pop() : '-'}
+                                                <div className="flex flex-col gap-1">
+                                                    <span>{port.path ? port.path.split('\\').pop() : '-'}</span>
+                                                    {port.path && (
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => handleOpen(port.path!, 'file')}
+                                                                className="flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline"
+                                                                title="Open File"
+                                                            >
+                                                                <FileText className="w-3 h-3" /> File
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleOpen(port.path!, 'location')}
+                                                                className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 hover:underline"
+                                                                title="Open Location"
+                                                            >
+                                                                <Folder className="w-3 h-3" /> Folder
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-3">
                                                 {(port.source === 'system' || port.source === 'docker_active') && port.id && (
