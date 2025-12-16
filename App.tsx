@@ -30,16 +30,16 @@ const App: React.FC = () => {
             Dashboard
           </button>
           
-          <button 
+          {/* <button 
             onClick={() => setCurrentView(AppView.PYTHON_SETUP)}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${currentView === AppView.PYTHON_SETUP ? 'bg-emerald-600/10 text-emerald-500 border border-emerald-600/20' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`}
           >
             <Terminal className="w-5 h-5" />
             Python Backend
-          </button>
+          </button> */}
         </nav>
 
-        <div className="p-4 mt-auto">
+        {/* <div className="p-4 mt-auto">
           <div className="bg-gray-800/50 rounded-lg p-3 text-xs text-gray-500 border border-gray-800">
             <p className="font-semibold text-gray-400 mb-1">Status</p>
             <div className="flex items-center gap-2">
@@ -47,7 +47,7 @@ const App: React.FC = () => {
               Simulation Mode
             </div>
           </div>
-        </div>
+        </div> */}
       </aside>
 
       {/* Main Content */}

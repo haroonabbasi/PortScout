@@ -11,8 +11,9 @@ const Dashboard: React.FC = () => {
     const [results, setResults] = useState<ScanResult | null>(null);
 
     // New state for connectivity
-    const [isLive, setIsLive] = useState(false);
+    const [isLive, setIsLive] = useState(true);
     const [backendAvailable, setBackendAvailable] = useState(false);
+    const [copiedPort, setCopiedPort] = useState<number | null>(null);
 
     // Search state
     const [searchTerm, setSearchTerm] = useState('');
@@ -58,6 +59,12 @@ const Dashboard: React.FC = () => {
         } catch (e: any) {
             alert(`Error: ${e.message}`);
         }
+    };
+
+    const handleCopy = (port: number) => {
+        navigator.clipboard.writeText(port.toString());
+        setCopiedPort(port);
+        setTimeout(() => setCopiedPort(null), 2000);
     };
 
     useEffect(() => {
@@ -230,9 +237,21 @@ const Dashboard: React.FC = () => {
                         </h3>
                         <div className="grid grid-cols-2 gap-2">
                             {results?.freePorts.map(port => (
-                                <div key={port} className="bg-gray-950 border border-gray-800 p-3 rounded text-center">
+                                <div
+                                    key={port}
+                                    onClick={() => handleCopy(port)}
+                                    className={`
+                                        bg-gray-950 border p-3 rounded text-center cursor-pointer transition-all
+                                        ${copiedPort === port
+                                            ? 'border-emerald-500 bg-emerald-900/20'
+                                            : 'border-gray-800 hover:border-emerald-500/50 hover:bg-gray-900'
+                                        }
+                                    `}
+                                >
                                     <span className="text-xl font-mono text-emerald-400 font-bold">{port}</span>
-                                    <p className="text-[10px] text-gray-500 uppercase mt-1">Available</p>
+                                    <p className={`text-[10px] uppercase mt-1 ${copiedPort === port ? 'text-emerald-400 font-bold' : 'text-gray-500'}`}>
+                                        {copiedPort === port ? 'Copied!' : 'Available'}
+                                    </p>
                                 </div>
                             ))}
                             {!results && <p className="text-gray-500 text-sm col-span-2 text-center">Scan to find ports</p>}
