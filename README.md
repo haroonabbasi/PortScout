@@ -11,20 +11,25 @@ PortRegistry is a powerful utility for developers to manage local ports. It prov
 *   **Process Management**: **Kill** system processes or **Stop** Docker containers directly from the UI.
 *   **Search & Filter**: Instantly find ports by service name, source, or file path.
 *   **Desktop App**: Runs as a standalone native window (no browser tab required).
-*   **AI Advisor**: Uses Gemini AI to recommend conflict-free port blocks.
+*   **Configurable Port Ranges**: Define custom port ranges in Settings for better organization.
+*   **Help/Tour**: Interactive tour to guide you through the application features.
 
 ## 🛠️ Architecture
 
-This app uses a **React Frontend** for the UI and a **Python Sidecar** for system access.
+This app uses a **React Frontend** for the UI and a **Python Backend** for system access.
 
-1.  **Frontend (React)**: Runs in your browser. Visualizes data.
-2.  **Backend (Python)**: Runs locally on your machine. Accesses the file system and network interfaces.
+1.  **Frontend (React/Vite)**: Provides the user interface. In development, runs in your browser. In production, runs in a native desktop window.
+2.  **Backend (Python/FastAPI)**: Runs locally on your machine. Handles port scanning, process management, and Docker integration via system APIs.
 
 ## ▶️ How to use the app
-1.  Go back to the **Dashboard**.
-2.  Toggle the **Live Connection** switch (or wait for auto-detection).
-3.  Enter your projects folder path (e.g., `D:\docker_apps`).
-4.  Click **Scan Ports**.
+1.  Open the **Dashboard** (default view when the app starts).
+2.  Enter your projects folder path (e.g., `D:\docker_apps`) where your Docker Compose files are located.
+3.  Click **Scan Ports** to analyze all ports in use.
+4.  View the results:
+    - **Occupied Ports**: See all ports currently in use by system processes, Docker containers, or Docker Compose files.
+    - **Port Grids**: Visual representation of port ranges (default: 3000-3099 and 8000-8099).
+    - **Recommended Free Ports**: Click any free port to copy it to your clipboard.
+5.  Use **Settings** to configure custom port ranges or access the **Help/Tour** for guided assistance.
 
 ## 📦 Installation & Setup
 
@@ -79,8 +84,6 @@ PortRegistry supports configuration via `.env` files.
 ```ini
 # Example .env configuration
 PORT=8000
-# Gemini API Key for AI features (Optional)
-GEMINI_API_KEY=your_key_here
 ```
 
 ## ⚠️ Troubleshooting
