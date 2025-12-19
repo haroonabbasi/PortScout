@@ -14,6 +14,8 @@ on:
 jobs:
   build-and-release:
     runs-on: windows-latest
+    permissions:
+      contents: write  # Required to create releases, upload assets, and read repository contents
     
     steps:
       - name: Checkout code
@@ -24,14 +26,28 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            $TAG = "${{ github.event.inputs.tag }}"
+          # Use single quotes to prevent PowerShell variable expansion issues
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $TAG = '${{ github.event.inputs.tag }}'
           } else {
-            $TAG = "${{ github.ref_name }}"
+            $TAG = '${{ github.ref_name }}'
+          }
+          
+          # Validate tag starts with v
+          if ($TAG -notmatch '^v') {
+            Write-Error "Tag must start with 'v' (e.g., v1.0.0)"
+            exit 1
           }
           
           # Remove 'v' prefix if present
           $VERSION = $TAG -replace '^v', ''
+          
+          # Validate version format (semantic versioning)
+          if ($VERSION -notmatch '^\d+\.\d+\.\d+') {
+            Write-Error "Version must follow semantic versioning (e.g., 1.0.0)"
+            exit 1
+          }
+          
           echo "version=$VERSION" >> $env:GITHUB_OUTPUT
           echo "tag=$TAG" >> $env:GITHUB_OUTPUT
           Write-Host "Version: $VERSION"
@@ -48,6 +64,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
+          cache: 'pip'  # Cache Python dependencies for faster builds
 
       - name: Install frontend dependencies
         run: npm ci
@@ -84,6 +101,11 @@ jobs:
           $checksumFile = "PortRegistry-v${{ steps.version.outputs.version }}.sha256.txt"
           $hash | Out-File -FilePath $checksumFile -Encoding utf8 -NoNewline
           Write-Host "Checksum: $hash"
+          Write-Host "Checksum file: $checksumFile"
+          if (-not (Test-Path $checksumFile)) {
+            Write-Error "Failed to create checksum file"
+            exit 1
+          }
           echo "checksum=$hash" >> $env:GITHUB_OUTPUT
           echo "checksum_file=$checksumFile" >> $env:GITHUB_OUTPUT
         shell: pwsh
@@ -138,6 +160,6 @@ jobs:
             PortRegistry-v${{ steps.version.outputs.version }}.sha256.txt
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false  # Don't fail if checksum file path doesn't match
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
