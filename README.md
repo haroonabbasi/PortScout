@@ -54,6 +54,7 @@ You can package PortRegistry into a single portable `.exe` file that contains bo
 1.  **Build Frontend & Backend**:
     Run the provided PowerShell script (Windows):
     ```powershell
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass 
     ./build_exe.ps1
     ```
     *Or manually:*
