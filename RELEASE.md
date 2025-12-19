@@ -8,8 +8,9 @@ Releases are automated using GitHub Actions. When a release is created, the work
 1. Build the frontend (React/Vite)
 2. Package the executable using PyInstaller
 3. Generate a SHA256 checksum file
-4. Extract release notes from `CHANGELOG.md`
-5. Create a GitHub release with the artifacts
+4. **Generate release notes** using GitHub's auto-generation API (like v1.0.0) - includes PR links, contributors, and changelog
+5. Optionally enhance with structured content from `CHANGELOG.md`
+6. Create a GitHub release with the artifacts and combined release notes
 
 ## Prerequisites
 
@@ -64,6 +65,35 @@ Each release includes:
 - `portregistry.exe` - The Windows executable
 - `PortRegistry-v{version}.sha256.txt` - SHA256 checksum file
 
+## Release Notes Generation
+
+The workflow uses a **hybrid approach** to generate release notes:
+
+### 1. **GitHub Auto-Generated Notes (Primary)**
+   - Automatically extracts information from **merged pull requests** between tags
+   - Includes:
+     - **"What's Changed"** section with PR summaries and links (e.g., `#1`, `#2`)
+     - **Contributors** section listing all contributors
+     - **Full Changelog** link to commit history
+   - Uses GitHub's API: `POST /repos/{owner}/{repo}/releases/generate-notes`
+   - This is the same format as manually clicking "Generate release notes" on GitHub
+
+### 2. **CHANGELOG.md Enhancement (Optional)**
+   - If auto-generation succeeds, changelog content is added as an additional "Detailed Changelog" section
+   - If auto-generation fails, changelog is used as fallback
+   - Provides structured, user-facing documentation (Added/Changed/Fixed sections)
+
+### Comparison: v1.0.0 vs v1.0.5
+
+| Feature | **v1.0.0 (Manual)** | **v1.0.5 (Automated)** |
+|---------|---------------------|------------------------|
+| **Created by** | `@haroonabbasi` | `@github-actions` |
+| **Notes Source** | GitHub auto-generated (manual click) | GitHub auto-generated (API) + CHANGELOG.md |
+| **PR Links** | ✅ Yes (`#1`, `#2`) | ✅ Yes (from auto-generation) |
+| **Contributors** | ✅ Yes | ✅ Yes (from auto-generation) |
+| **Structured Sections** | ❌ No | ✅ Yes (from CHANGELOG.md) |
+| **Full Changelog Link** | ✅ Yes | ✅ Yes (from auto-generation) |
+
 ## Changelog Format
 
 The changelog parser expects the following format:
@@ -86,6 +116,7 @@ The changelog parser expects the following format:
 - Date is optional but recommended
 - The section ends at the next version header or end of file
 - If no matching changelog entry is found, a default message will be used
+- Changelog content enhances but doesn't replace auto-generated notes
 
 ## Troubleshooting
 

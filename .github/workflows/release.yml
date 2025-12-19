@@ -110,18 +110,104 @@ jobs:
           echo "checksum_file=$checksumFile" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      - name: Extract changelog for version
+      - name: Find previous release tag
+        id: previous_tag
+        run: |
+          $currentTag = '${{ steps.version.outputs.tag }}'
+          Write-Host "Current tag: $currentTag"
+          
+          # Get all tags sorted by version (newest first)
+          $tags = git tag -l 'v*' | Sort-Object { [version]($_.Substring(1)) } -Descending
+          
+          # Find the tag before the current one
+          $previousTag = $null
+          foreach ($tag in $tags) {
+            if ($tag -ne $currentTag) {
+              $previousTag = $tag
+              break
+            }
+          }
+          
+          if ($previousTag) {
+            Write-Host "Previous tag found: $previousTag"
+            echo "tag=$previousTag" >> $env:GITHUB_OUTPUT
+            echo "found=true" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "No previous tag found, will generate notes from beginning"
+            echo "tag=" >> $env:GITHUB_OUTPUT
+            echo "found=false" >> $env:GITHUB_OUTPUT
+          }
+        shell: pwsh
+
+      - name: Generate auto-release notes from GitHub
+        id: auto_notes
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          $previousTag = '${{ steps.previous_tag.outputs.tag }}'
+          $repository = '${{ github.repository }}'  # Format: owner/repo
+          $token = '${{ secrets.GITHUB_TOKEN }}'
+          
+          Write-Host "Generating release notes for tag: $tag"
+          if ($previousTag) {
+            Write-Host "Comparing with previous tag: $previousTag"
+          } else {
+            Write-Host "No previous tag, generating from beginning"
+          }
+          
+          # Prepare API request body
+          $bodyObj = @{
+            tag_name = $tag
+          }
+          
+          # Only include previous_tag_name if we have one
+          if ($previousTag) {
+            $bodyObj.previous_tag_name = $previousTag
+          }
+          
+          $body = $bodyObj | ConvertTo-Json
+          
+          # Call GitHub API to generate release notes
+          $headers = @{
+            Authorization = "Bearer $token"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          
+          try {
+            $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$repository/releases/generate-notes" `
+              -Method Post `
+              -Headers $headers `
+              -Body $body `
+              -ContentType "application/json"
+            
+            $autoNotes = $response.body
+            Write-Host "Successfully generated auto-release notes"
+            Write-Host "Notes length: $($autoNotes.Length) characters"
+            
+            # Escape for GitHub Actions output
+            $autoNotes = $autoNotes -replace "`r`n", "`n" -replace "`r", "`n"
+            echo "notes<<EOF" >> $env:GITHUB_OUTPUT
+            echo "$autoNotes" >> $env:GITHUB_OUTPUT
+            echo "EOF" >> $env:GITHUB_OUTPUT
+            echo "success=true" >> $env:GITHUB_OUTPUT
+          } catch {
+            Write-Host "Failed to generate auto-release notes: $($_.Exception.Message)"
+            Write-Host "Falling back to changelog extraction"
+            echo "success=false" >> $env:GITHUB_OUTPUT
+            echo "notes=" >> $env:GITHUB_OUTPUT
+          }
+        shell: pwsh
+
+      - name: Extract changelog for version (fallback/enhancement)
         id: changelog
         run: |
           $version = "${{ steps.version.outputs.version }}"
           $changelogPath = "CHANGELOG.md"
           
           if (-not (Test-Path $changelogPath)) {
-            Write-Host "CHANGELOG.md not found, using default release notes"
-            $releaseNotes = "Release v$version"
-            echo "notes<<EOF" >> $env:GITHUB_OUTPUT
-            echo "$releaseNotes" >> $env:GITHUB_OUTPUT
-            echo "EOF" >> $env:GITHUB_OUTPUT
+            Write-Host "CHANGELOG.md not found"
+            echo "found=false" >> $env:GITHUB_OUTPUT
+            echo "notes=" >> $env:GITHUB_OUTPUT
             exit 0
           }
           
@@ -134,19 +220,60 @@ jobs:
           $match = [regex]::Match($content, $pattern)
           
           if ($match.Success) {
-            $releaseNotes = $match.Groups[1].Value.Trim()
+            $changelogNotes = $match.Groups[1].Value.Trim()
             Write-Host "Found changelog entry for version $version"
-            Write-Host "Extracted notes length: $($releaseNotes.Length) characters"
+            Write-Host "Extracted notes length: $($changelogNotes.Length) characters"
+            echo "found=true" >> $env:GITHUB_OUTPUT
           } else {
-            Write-Host "No changelog entry found for version $version, using default"
-            $releaseNotes = "Release v$version`n`nSee CHANGELOG.md for details."
+            Write-Host "No changelog entry found for version $version"
+            echo "found=false" >> $env:GITHUB_OUTPUT
+            $changelogNotes = ""
           }
           
           # Escape for GitHub Actions output
-          $releaseNotes = $releaseNotes -replace "`r`n", "`n" -replace "`r", "`n"
+          $changelogNotes = $changelogNotes -replace "`r`n", "`n" -replace "`r", "`n"
           echo "notes<<EOF" >> $env:GITHUB_OUTPUT
-          echo "$releaseNotes" >> $env:GITHUB_OUTPUT
+          echo "$changelogNotes" >> $env:GITHUB_OUTPUT
           echo "EOF" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Combine release notes
+        id: combined_notes
+        run: |
+          $autoSuccess = '${{ steps.auto_notes.outputs.success }}' -eq 'true'
+          $changelogFound = '${{ steps.changelog.outputs.found }}' -eq 'true'
+          $autoNotes = @'
+          ${{ steps.auto_notes.outputs.notes }}
+          '@
+          $changelogNotes = @'
+          ${{ steps.changelog.outputs.notes }}
+          '@
+          
+          if ($autoSuccess) {
+            Write-Host "Using GitHub auto-generated release notes as base"
+            $finalNotes = $autoNotes.Trim()
+            
+            # Optionally enhance with changelog if available and different
+            if ($changelogFound -and $changelogNotes.Trim()) {
+              Write-Host "Enhancing with changelog content"
+              # Add changelog as an additional section if it provides more detail
+              $finalNotes += "`n`n---`n`n## 📝 Detailed Changelog`n`n" + $changelogNotes.Trim()
+            }
+          } elseif ($changelogFound) {
+            Write-Host "Using changelog as release notes (fallback)"
+            $finalNotes = $changelogNotes.Trim()
+          } else {
+            Write-Host "No release notes available, using default"
+            $version = '${{ steps.version.outputs.version }}'
+            $finalNotes = "Release v$version`n`nSee CHANGELOG.md for details."
+          }
+          
+          # Escape for GitHub Actions output
+          $finalNotes = $finalNotes -replace "`r`n", "`n" -replace "`r", "`n"
+          echo "notes<<EOF" >> $env:GITHUB_OUTPUT
+          echo "$finalNotes" >> $env:GITHUB_OUTPUT
+          echo "EOF" >> $env:GITHUB_OUTPUT
+          Write-Host "Final release notes length: $($finalNotes.Length) characters"
         shell: pwsh
 
       - name: Create GitHub Release
@@ -154,7 +281,7 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Release ${{ steps.version.outputs.tag }}
-          body: ${{ steps.changelog.outputs.notes }}
+          body: ${{ steps.combined_notes.outputs.notes }}
           files: |
             dist/portregistry.exe
             PortRegistry-v${{ steps.version.outputs.version }}.sha256.txt
