@@ -1,8 +1,21 @@
-title: "PortRegistry Docs"
-description: "Documentation site for PortRegistry — architecture, dev setup, release & installer"
+title: PortRegistry Docs
+description: Documentation site for PortRegistry — architecture, dev setup, release & installer
 baseurl: "/port-registry"
 url: ""
-theme: minima
-markdown: kramdown
+
+# Theme settings
+remote_theme: just-the-docs/just-the-docs
+theme: just-the-docs
+
+# Mermaid support
+mermaid:
+  version: "10.6.1"
+
 plugins:
   - jekyll-feed
+  - jekyll-remote-theme
+
+# Navigation settings
+aux_links:
+  "PortRegistry on GitHub":
+    - "https://github.com/haroonabbasi/port-registry"
