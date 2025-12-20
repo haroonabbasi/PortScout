@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-and-release:
-    name: Build and release on ${{ matrix.os }}
+    name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -122,32 +122,105 @@ jobs:
           fi
         shell: bash
 
-      - name: Prepare release files list
-        id: files
+      - name: Collect release artifacts
+        id: collect
         run: |
-          FILES=""
+          rm -rf release-artifacts || true
+          mkdir -p release-artifacts
+          # Copy expected outputs into a single folder for upload
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            if [ -f dist/portregistry.exe ]; then FILES="$FILES dist/portregistry.exe"; fi
-            if [ -f installer/PortRegistry_Setup.exe ]; then FILES="$FILES installer/PortRegistry_Setup.exe"; fi
+            cp -v dist/portregistry.exe release-artifacts/ 2>/dev/null || true
+            cp -v installer/PortRegistry_Setup.exe release-artifacts/ 2>/dev/null || true
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            if [ -f PortRegistry.dmg ]; then FILES="$FILES PortRegistry.dmg"; fi
-            if [ -d dist/portregistry.app ]; then FILES="$FILES dist/portregistry.app"; fi
+            if [ -f PortRegistry.dmg ]; then cp -v PortRegistry.dmg release-artifacts/; fi
+            if [ -d dist/portregistry.app ]; then cp -r dist/portregistry.app release-artifacts/; fi
           else
-            if [ -f dist/portregistry ]; then FILES="$FILES dist/portregistry"; fi
-            if [ -f PortRegistry-linux-dist.tar.gz ]; then FILES="$FILES PortRegistry-linux-dist.tar.gz"; fi
+            cp -v dist/portregistry release-artifacts/ 2>/dev/null || true
+            cp -v PortRegistry-linux-dist.tar.gz release-artifacts/ 2>/dev/null || true
           fi
-          echo "files=$FILES" >> $GITHUB_OUTPUT
+          ls -la release-artifacts || true
         shell: bash
 
-      - name: Create / Update GitHub Release (attach artifacts for this runner)
+      - name: Upload artifacts for aggregation
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.os }}
+          path: release-artifacts
+
+  aggregate-release:
+    name: Aggregate artifacts and create release
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (for changelog access)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const core = require('@actions/core')
+            let tag = ''
+            if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
+              tag = '${{ github.event.inputs.tag }}' || ''
+            } else if (process.env.GITHUB_REF && process.env.GITHUB_REF.startsWith('refs/tags/')) {
+              tag = process.env.GITHUB_REF.replace('refs/tags/', '')
+            } else if (context.ref && context.ref.startsWith('refs/tags/')) {
+              tag = context.ref.replace('refs/tags/', '')
+            } else if (context.payload.ref_name) {
+              tag = context.payload.ref_name
+            }
+            if (!tag) throw new Error('Tag not found')
+            if (!/^v/.test(tag)) throw new Error("Tag must start with 'v' (e.g., v1.0.0)")
+            const version = tag.replace(/^v/, '')
+            core.setOutput('tag', tag)
+            core.setOutput('version', version)
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List downloaded files
+        run: |
+          echo "Downloaded artifacts:"
+          find artifacts -type f -print
+
+      - name: Generate combined SHA256 checksums
+        run: |
+          set -e
+          mkdir -p checksums
+          # Use sha256sum if available; fallback to shasum -a 256 on macOS
+          if command -v sha256sum >/dev/null 2>&1; then
+            find artifacts -type f -print0 | xargs -0 sha256sum > checksums/PortRegistry-all.sha256.txt || true
+          else
+            find artifacts -type f -print0 | xargs -0 shasum -a 256 > checksums/PortRegistry-all.sha256.txt || true
+          fi
+          ls -la checksums
+
+      - name: Prepare files list for release
+        id: filelist
+        run: |
+          # Collect all files (artifacts + checksum) into a newline-separated list for the release action
+          mkdir -p release-attach
+          cp -r artifacts/* release-attach/ || true
+          cp checksums/PortRegistry-all.sha256.txt release-attach/ || true
+          # Generate newline-separated list for GitHub Action output
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          find release-attach -type f -print
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release and attach artifacts
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Release ${{ steps.version.outputs.tag }}
-          body: Release ${{ steps.version.outputs.tag }} (build for ${{ matrix.os }})
-          files: ${{ steps.files.outputs.files }}
+          body: "Automated cross-platform build artifacts for ${{ steps.version.outputs.tag }}"
+          files: ${{ steps.filelist.outputs.files }}
           draft: false
           prerelease: false
-          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
