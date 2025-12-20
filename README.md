@@ -94,3 +94,7 @@ PORT=8000
 ## Screenshots
 
 ![Main Page](./screenshots/portscout-docker-port-manager-screenshot1.png)
+
+
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE.txt) file for details.
