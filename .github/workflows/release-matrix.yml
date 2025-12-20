@@ -1,0 +1,153 @@
+name: Release (matrix)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to release (e.g., v1.0.5)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    name: Build and release on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const core = require('@actions/core')
+            let tag = ''
+            if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
+              tag = '${{ github.event.inputs.tag }}' || ''
+            } else if (process.env.GITHUB_REF && process.env.GITHUB_REF.startsWith('refs/tags/')) {
+              tag = process.env.GITHUB_REF.replace('refs/tags/', '')
+            } else if (context.ref && context.ref.startsWith('refs/tags/')) {
+              tag = context.ref.replace('refs/tags/', '')
+            } else if (context.payload.ref_name) {
+              tag = context.payload.ref_name
+            }
+            if (!tag) throw new Error('Tag not found')
+            if (!/^v/.test(tag)) throw new Error("Tag must start with 'v' (e.g., v1.0.0)")
+            const version = tag.replace(/^v/, '')
+            core.setOutput('tag', tag)
+            core.setOutput('version', version)
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r back-end/requirements.txt
+
+      - name: Build executable with PyInstaller (platform-specific)
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            pyinstaller portregistry.spec --clean
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            pyinstaller --name portregistry --windowed --add-data "dist:dist" back-end/server.py
+          else
+            pyinstaller --name portregistry --noconsole --onefile --add-data "dist:dist" back-end/server.py
+          fi
+        shell: bash
+
+      - name: Platform packaging - Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          # Install Inno Setup via Chocolatey if not present
+          if (-not (Get-Command ISCC -ErrorAction SilentlyContinue)) {
+            choco install innosetup -y
+          }
+          # Compile installer if ISCC available
+          if (Test-Path '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"') {
+            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" .\portregistry.iss
+          } elseif (Get-Command ISCC -ErrorAction SilentlyContinue) {
+            ISCC .\portregistry.iss
+          } else {
+            Write-Host 'Inno Setup compiler not found; skipping installer step.'
+          }
+        shell: pwsh
+
+      - name: Platform packaging - macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          # Create a compressed DMG from the .app (if produced)
+          if [ -d "dist/portregistry.app" ]; then
+            hdiutil create -volname PortRegistry -srcfolder dist/portregistry.app -ov -format UDZO PortRegistry.dmg
+          else
+            echo "dist/portregistry.app not found; skipping DMG creation"
+          fi
+        shell: bash
+
+      - name: Platform packaging - Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # Create a tar.gz of the dist folder (simple portable artifact)
+          if [ -d dist ]; then
+            tar -czf PortRegistry-linux-dist.tar.gz -C dist .
+          else
+            echo "dist not found; skipping tar creation"
+          fi
+        shell: bash
+
+      - name: Prepare release files list
+        id: files
+        run: |
+          FILES=""
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            if [ -f dist/portregistry.exe ]; then FILES="$FILES dist/portregistry.exe"; fi
+            if [ -f installer/PortRegistry_Setup.exe ]; then FILES="$FILES installer/PortRegistry_Setup.exe"; fi
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            if [ -f PortRegistry.dmg ]; then FILES="$FILES PortRegistry.dmg"; fi
+            if [ -d dist/portregistry.app ]; then FILES="$FILES dist/portregistry.app"; fi
+          else
+            if [ -f dist/portregistry ]; then FILES="$FILES dist/portregistry"; fi
+            if [ -f PortRegistry-linux-dist.tar.gz ]; then FILES="$FILES PortRegistry-linux-dist.tar.gz"; fi
+          fi
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Create / Update GitHub Release (attach artifacts for this runner)
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body: Release ${{ steps.version.outputs.tag }} (build for ${{ matrix.os }})
+          files: ${{ steps.files.outputs.files }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -74,6 +74,10 @@ You can package PortRegistry into a single portable `.exe` file that contains bo
     ./dist/portregistry.exe
     ```
 
+### Creating an Installer (Windows - Inno Setup)
+
+[Follow link doc](installer.md)
+
 ## ⚙️ Configuration
 
 PortRegistry supports configuration via `.env` files.
@@ -93,7 +97,7 @@ PORT=8000
 
 ## Screenshots
 
-![Main Page](./screenshots/portscout-docker-port-manager-screenshot1.png)
+![Main Page](./screenshots/screenshot.png)
 
 
 ## License

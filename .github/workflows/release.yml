@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'  # Triggers on tags like v1.0.5
   workflow_dispatch:
     inputs:
       tag:

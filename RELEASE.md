@@ -12,6 +12,42 @@ Releases are automated using GitHub Actions. When a release is created, the work
 5. Optionally enhance with structured content from `CHANGELOG.md`
 6. Create a GitHub release with the artifacts and combined release notes
 
+## Matrix Release Workflow (cross-platform)
+
+We added a matrix workflow that builds and packages PortRegistry for multiple platforms: `.github/workflows/release-matrix.yml`.
+
+- **Triggers**: The workflow runs on tag pushes that match `v*` and can be started manually via **Run workflow** (`workflow_dispatch`) where you provide a `tag` input. Use the same tag format as described above (for example `v1.0.5`).
+
+- **Matrix runners**: `windows-latest`, `macos-latest`, `ubuntu-latest`.
+
+- **What each runner does**:
+   - Installs Node.js and Python, builds the frontend (`npm run build`) and installs backend dependencies.
+   - Runs PyInstaller on the runner to produce platform-specific builds:
+      - Windows runner produces `dist/portregistry.exe`.
+      - macOS runner produces `dist/portregistry.app` (and the workflow will create a `PortRegistry.dmg` if the `.app` exists).
+      - Linux runner produces a native binary in `dist/` and a `PortRegistry-linux-dist.tar.gz` tarball as a portable artifact.
+   - Platform-specific packaging steps are included:
+      - Windows: attempts to run Inno Setup (`ISCC.exe`) to create `installer/PortRegistry_Setup.exe` (the runner must have Inno Setup installed or it can be installed via Chocolatey in the job).
+      - macOS: creates a compressed `.dmg` using `hdiutil` when `dist/portregistry.app` is present. Code signing and notarization are left to maintainers (requires Apple Developer credentials).
+      - Linux: creates a compressed tarball of `dist` for distribution and testing.
+
+- **Release creation & artifact uploads**:
+   - Each matrix runner attaches the artifacts it produced to the same GitHub Release using `softprops/action-gh-release`.
+   - This means multiple runners will update the same release object; artifacts are uploaded per-runner as they finish.
+
+- **Notes & expectations**:
+   - The workflow runs PyInstaller on each runner; it does not require pre-built binaries to be checked into the repo — builds are produced on the runners themselves.
+   - macOS builds (and codesigning/notarization) must run on macOS runners or macOS machines (you cannot reliably codesign/notarize on Linux/Windows CI).
+   - Windows installer creation requires Inno Setup to be available on the runner. The current workflow attempts to install Inno Setup via Chocolatey when running on Windows GitHub Actions.
+
+- **Aggregation alternative (recommended for deterministic release creation)**:
+   - If you prefer a single job to create the release once all platform artifacts are available, we can change the workflow to:
+      1. Have each matrix job `upload-artifact` with its produced files.
+      2. Add a final job that depends on the matrix jobs, `download-artifact` for each runner, then create the GitHub release and attach all artifacts in one step.
+   - Advantages: avoids multiple jobs racing to update the same release and provides a single release body that can include all artifact metadata.
+
+If you want, I can update the workflow to use the aggregated approach and add example `workflow_dispatch` instructions for manual runs.
+
 ## Prerequisites
 
 - Ensure `CHANGELOG.md` has been updated with the new version's changes
