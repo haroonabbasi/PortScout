@@ -1,0 +1,8 @@
+title: "PortRegistry Docs"
+description: "Documentation site for PortRegistry — architecture, dev setup, release & installer"
+baseurl: ""
+url: ""
+theme: minima
+markdown: kramdown
+plugins:
+  - jekyll-feed
