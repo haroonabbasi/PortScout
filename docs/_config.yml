@@ -1,6 +1,6 @@
 title: "PortRegistry Docs"
 description: "Documentation site for PortRegistry — architecture, dev setup, release & installer"
-baseurl: ""
+baseurl: "/port-registry"
 url: ""
 theme: minima
 markdown: kramdown
