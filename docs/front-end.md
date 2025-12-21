@@ -1,3 +1,7 @@
+---
+title: Frontend
+---
+
 # Front-end (React + Vite)
 
 Tech used:
