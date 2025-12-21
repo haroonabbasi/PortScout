@@ -24,3 +24,10 @@ dist-ssr
 *.sw?
 .history
 /build
+
+# Documentation build artifacts
+docs/.vitepress/dist
+docs/.vitepress/cache
+docs/_site
+docs/.jekyll-cache
+docs/Gemfile.lock

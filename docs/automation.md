@@ -1,3 +1,7 @@
+---
+title: Automation
+---
+
 # Automation & CI
 
 Recommended CI strategy
