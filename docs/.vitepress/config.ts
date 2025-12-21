@@ -13,7 +13,7 @@ export default withMermaid(
     base: computedBase,
     themeConfig: {
       // Use a path that will be prefixed by `base` during build.
-      logo: assetPath('assets/icon.png'),
+      logo: '/assets/icon.png',
       nav: [
         { text: 'Home', link: '/' },
         { text: 'Architecture', link: '/architecture' },
