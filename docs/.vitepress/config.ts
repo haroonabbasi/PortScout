@@ -13,7 +13,9 @@ export default withMermaid(
     base: computedBase,
     themeConfig: {
       // Use a path that will be prefixed by `base` during build.
-      logo: '/assets/icon.png',
+        // Use a path that will be prefixed by `base` during build.
+        // Add a version query param to bust caches when we update the logo.
+        logo: '/assets/icon.png?v=2',
       nav: [
         { text: 'Home', link: '/' },
         { text: 'Architecture', link: '/architecture' },

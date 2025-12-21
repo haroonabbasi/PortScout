@@ -35,6 +35,12 @@ jobs:
 
       - name: Build with VitePress
         run: |
+          # remove previous build output to avoid serving stale files
+          rm -rf docs/.vitepress/dist
+          # ensure public assets folder contains project assets so VitePress copies them
+          rm -rf docs/.vitepress/public
+          mkdir -p docs/.vitepress/public/assets
+          if [ -d "assets" ]; then cp -r assets/* docs/.vitepress/public/assets/ || true; fi
           npm run docs:build
           touch docs/.vitepress/dist/.nojekyll
 
