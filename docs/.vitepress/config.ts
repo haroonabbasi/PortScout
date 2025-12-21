@@ -1,13 +1,19 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 
+// Allow overriding the base path via environment variable `DOCS_BASE`.
+// Defaults: development -> '/', production -> '/port-registry/' (project-root relative).
+const computedBase = process.env.DOCS_BASE ?? (process.env.NODE_ENV === 'development' ? '/' : '/port-registry/')
 export default withMermaid(
   defineConfig({
     title: "PortRegistry",
     description: "Modern port monitoring and process control",
-    base: 'https://github.com/haroonabbasi/port-registry',
+    // For GitHub Pages project site, base should be the repo name path.
+    // This makes built asset URLs like `/port-registry/assets/...` which GitHub Pages serves.
+    base: computedBase,
     themeConfig: {
-      logo: '../../assets/icon.png',
+      // Use a path that will be prefixed by `base` during build.
+      logo: assetPath('assets/icon.png'),
       nav: [
         { text: 'Home', link: '/' },
         { text: 'Architecture', link: '/architecture' },
@@ -62,3 +68,7 @@ export default withMermaid(
     }
   })
 )
+function assetPath(p: string) {
+  // Ensure single-slash joining
+  return `${computedBase.replace(/\/$/, '')}/${p.replace(/^\/+/, '')}`
+}
