@@ -16,6 +16,7 @@ from pydantic import BaseModel
 import argparse
 import sys
 import subprocess
+import re
 from dotenv import load_dotenv
 import threading
 import webview
@@ -126,11 +127,85 @@ def get_docker_ports():
         logger.exception("Docker Error: %s", e)
     return ports
 
+def _resolve_env_var_token(token: str) -> Optional[str]:
+    """Resolve simple Docker Compose style env tokens like ${VAR}, ${VAR:-default} or ${VAR-default}.
+    Returns the resolved string or None if nothing found."""
+    m = re.match(r'^\$\{([^}]+)\}$', token)
+    if not m:
+        return None
+    inner = m.group(1)
+    # handle VAR:-default, VAR-default, VAR:default
+    for sep in (':-', '-', ':'):
+        if sep in inner:
+            var, default = inner.split(sep, 1)
+            var = var.strip()
+            default = default.strip()
+            return os.environ.get(var, default)
+    var = inner.strip()
+    return os.environ.get(var)
+
+
+def _extract_candidate_port(candidate: str) -> Optional[int]:
+    if candidate is None:
+        return None
+    s = candidate.strip()
+    # strip protocol suffix if present (e.g., '80/tcp')
+    s = s.split('/')[0]
+
+    # direct integer or range like '8080-8089'
+    m = re.match(r'^(\d+)(?:-\d+)?$', s)
+    if m:
+        return int(m.group(1))
+
+    # environment variable token
+    ev = _resolve_env_var_token(s)
+    if ev:
+        ev = ev.strip()
+        try:
+            return int(ev)
+        except Exception:
+            m2 = re.search(r"(\d+)", ev)
+            if m2:
+                return int(m2.group(1))
+            return None
+
+    # fallback: extract first integer appearing in the token
+    m3 = re.search(r"(\d+)", s)
+    if m3:
+        return int(m3.group(1))
+    return None
+
+
+def _parse_port_mapping(port_mapping) -> Optional[int]:
+    """Robustly parse a compose 'ports' mapping and return the host port if possible."""
+    if isinstance(port_mapping, int):
+        return port_mapping
+    if isinstance(port_mapping, str):
+        s = port_mapping.strip()
+        parts = s.split(':')
+        # If mapping contains IP:HOST:CONTAINER, host is the second from right
+        if len(parts) >= 3:
+            candidate = parts[-2]
+            port = _extract_candidate_port(candidate)
+            if port is not None:
+                return port
+        # If HOST:CONTAINER format
+        if len(parts) == 2:
+            candidate = parts[0]
+            port = _extract_candidate_port(candidate)
+            if port is not None:
+                return port
+        # Single value (maybe env var or number)
+        candidate = parts[0]
+        return _extract_candidate_port(candidate)
+    return None
+
+
 def scan_compose_files(root_dir):
     found_ports = []
     if not os.path.exists(root_dir):
         return found_ports
-        
+
     for root, dirs, files in os.walk(root_dir):
         for file in files:
             if file in ['docker-compose.yml', 'docker-compose.yaml']:
@@ -142,22 +217,20 @@ def scan_compose_files(root_dir):
                             for svc_name, svc_data in data['services'].items():
                                 if 'ports' in svc_data:
                                     for port_mapping in svc_data['ports']:
-                                        # Handle various docker compose port formats
-                                        # "8080:80" -> 8080
-                                        # 8080 -> 8080
-                                        host_port = None
-                                        if isinstance(port_mapping, str) and ':' in port_mapping:
-                                            host_port = port_mapping.split(':')[0]
-                                        elif isinstance(port_mapping, int):
-                                            host_port = port_mapping
-                                        
-                                        if host_port:
+                                        try:
+                                            port = _parse_port_mapping(port_mapping)
+                                            if port is None:
+                                                logger.debug("Skipping unresolved port mapping in %s: %s", full_path, port_mapping)
+                                                continue
                                             found_ports.append({
-                                                "port": int(host_port),
+                                                "port": int(port),
                                                 "service": f"File: {os.path.basename(root)}/{svc_name}",
                                                 "source": "docker_file",
                                                 "path": full_path
                                             })
+                                        except Exception as e:
+                                            # parse errors for a specific mapping shouldn't abort parsing the file
+                                            logger.warning("Could not parse port mapping '%s' in %s: %s", port_mapping, full_path, e)
                 except Exception as e:
                     logger.exception("Error parsing %s: %s", full_path, e)
     return found_ports
