@@ -32,7 +32,6 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const core = require('@actions/core')
             let tag = ''
             if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
               tag = '${{ github.event.inputs.tag }}' || ''
@@ -162,7 +161,6 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const core = require('@actions/core')
             let tag = ''
             if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
               tag = '${{ github.event.inputs.tag }}' || ''
