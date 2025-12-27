@@ -383,7 +383,6 @@ async def global_exception_handler(request, exc):
 def is_port_in_use(port: int, host: str = '127.0.0.1') -> bool:
     """Return True if port is already in use on given host."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             s.bind((host, port))
             return False
@@ -399,14 +398,14 @@ def find_free_port(host: str = '127.0.0.1') -> int:
 
 
 def choose_port(requested_port: int) -> int:
-    """Return requested_port if free, otherwise pick a free ephemeral port and log the choice."""
+    """Try requested_port; if busy (including TIME_WAIT), get a fresh free port from OS."""
     if not is_port_in_use(requested_port):
         logger.info("Using requested port %s", requested_port)
         return requested_port
     else:
-        logger.warning("Requested port %s is in use; selecting a different free port", requested_port)
+        logger.warning("Requested port %s is in use or in TIME_WAIT; getting a fresh free port from OS", requested_port)
         new_port = find_free_port()
-        logger.info("Selected port %s", new_port)
+        logger.info("Selected free port %s", new_port)
         return new_port
 
 
