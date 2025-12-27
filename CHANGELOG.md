@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2025-12-27
+
+### Added
+- None specific for this release (see Changed/Fixed).
+
+### Changed
+- Documentation migrated and improved (vite-press docs, config and theme updates).
+- CI/workflow improvements: release automation and GitHub Actions updates.
+- Assets and icons: image renames and path fixes for frontend assets.
+- Version and packaging metadata updated to 2.0.0.
+
+### Fixed
+- Fixed backend port selection so the app chooses a working free port when the default is unavailable, preventing bind failures.
+- Fixed Docker Compose YAML scanning logic to properly handle environment-variable placeholders and complex port mappings.
+- Various minor bug fixes and stability improvements.
+
+### Security / CI
+- Added permissions and release workflow improvements for automated release creation.
+
+
 ## [1.0.5] - 2025-12-17
 
 ### Added

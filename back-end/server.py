@@ -5,21 +5,47 @@ import os
 import psutil
 import yaml
 import docker
+import logging
+import socket
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from typing import List, Dict, Optional
 from pydantic import BaseModel
 import argparse
 import sys
 import subprocess
+import re
 from dotenv import load_dotenv
 import threading
 import webview
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Setup logging to file and console
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_FILE = os.environ.get('LOG_FILE', os.path.join(LOG_DIR, 'app.log'))
+
+logger = logging.getLogger("portregistry")
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+from logging.handlers import RotatingFileHandler
+file_handler = RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=3)
+file_handler.setFormatter(formatter)
+file_handler.setLevel(logging.INFO)
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+console_handler.setLevel(logging.INFO)
+
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+logger.info("Logger initialized. Log file: %s", LOG_FILE)
 
 app = FastAPI()
 
@@ -41,10 +67,11 @@ app.add_middleware(
 # Initialize Docker client (fails gracefully if Docker not running)
 try:
     client = docker.from_env()
-    print("Docker client initialized successfully.")
+    logger.info("Docker client initialized successfully.")
 except Exception as e:
     client = None
-    print(f"Warning: Docker client could not be initialized. Active containers will not be scanned. Error: {e}")
+    logger.warning("Docker client could not be initialized. Active containers will not be scanned. Error: %s", e)
+
 
 def get_system_ports():
     ports = []
@@ -59,7 +86,7 @@ def get_system_ports():
                     "id": str(conn.pid)
                 })
     except Exception as e:
-        print(f"System Scan Error: {e}")
+        logger.exception("System Scan Error: %s", e)
     return ports
 
 def get_docker_ports():
@@ -97,14 +124,88 @@ def get_docker_ports():
                                 "id": container.id
                             })
     except Exception as e:
-        print(f"Docker Error: {e}")
+        logger.exception("Docker Error: %s", e)
     return ports
+
+def _resolve_env_var_token(token: str) -> Optional[str]:
+    """Resolve simple Docker Compose style env tokens like ${VAR}, ${VAR:-default} or ${VAR-default}.
+    Returns the resolved string or None if nothing found."""
+    m = re.match(r'^\$\{([^}]+)\}$', token)
+    if not m:
+        return None
+    inner = m.group(1)
+    # handle VAR:-default, VAR-default, VAR:default
+    for sep in (':-', '-', ':'):
+        if sep in inner:
+            var, default = inner.split(sep, 1)
+            var = var.strip()
+            default = default.strip()
+            return os.environ.get(var, default)
+    var = inner.strip()
+    return os.environ.get(var)
+
+
+def _extract_candidate_port(candidate: str) -> Optional[int]:
+    if candidate is None:
+        return None
+    s = candidate.strip()
+    # strip protocol suffix if present (e.g., '80/tcp')
+    s = s.split('/')[0]
+
+    # direct integer or range like '8080-8089'
+    m = re.match(r'^(\d+)(?:-\d+)?$', s)
+    if m:
+        return int(m.group(1))
+
+    # environment variable token
+    ev = _resolve_env_var_token(s)
+    if ev:
+        ev = ev.strip()
+        try:
+            return int(ev)
+        except Exception:
+            m2 = re.search(r"(\d+)", ev)
+            if m2:
+                return int(m2.group(1))
+            return None
+
+    # fallback: extract first integer appearing in the token
+    m3 = re.search(r"(\d+)", s)
+    if m3:
+        return int(m3.group(1))
+    return None
+
+
+def _parse_port_mapping(port_mapping) -> Optional[int]:
+    """Robustly parse a compose 'ports' mapping and return the host port if possible."""
+    if isinstance(port_mapping, int):
+        return port_mapping
+    if isinstance(port_mapping, str):
+        s = port_mapping.strip()
+        parts = s.split(':')
+        # If mapping contains IP:HOST:CONTAINER, host is the second from right
+        if len(parts) >= 3:
+            candidate = parts[-2]
+            port = _extract_candidate_port(candidate)
+            if port is not None:
+                return port
+        # If HOST:CONTAINER format
+        if len(parts) == 2:
+            candidate = parts[0]
+            port = _extract_candidate_port(candidate)
+            if port is not None:
+                return port
+        # Single value (maybe env var or number)
+        candidate = parts[0]
+        return _extract_candidate_port(candidate)
+    return None
+
 
 def scan_compose_files(root_dir):
     found_ports = []
     if not os.path.exists(root_dir):
         return found_ports
-        
+
     for root, dirs, files in os.walk(root_dir):
         for file in files:
             if file in ['docker-compose.yml', 'docker-compose.yaml']:
@@ -116,24 +217,22 @@ def scan_compose_files(root_dir):
                             for svc_name, svc_data in data['services'].items():
                                 if 'ports' in svc_data:
                                     for port_mapping in svc_data['ports']:
-                                        # Handle various docker compose port formats
-                                        # "8080:80" -> 8080
-                                        # 8080 -> 8080
-                                        host_port = None
-                                        if isinstance(port_mapping, str) and ':' in port_mapping:
-                                            host_port = port_mapping.split(':')[0]
-                                        elif isinstance(port_mapping, int):
-                                            host_port = port_mapping
-                                        
-                                        if host_port:
+                                        try:
+                                            port = _parse_port_mapping(port_mapping)
+                                            if port is None:
+                                                logger.debug("Skipping unresolved port mapping in %s: %s", full_path, port_mapping)
+                                                continue
                                             found_ports.append({
-                                                "port": int(host_port),
+                                                "port": int(port),
                                                 "service": f"File: {os.path.basename(root)}/{svc_name}",
                                                 "source": "docker_file",
                                                 "path": full_path
                                             })
+                                        except Exception as e:
+                                            # parse errors for a specific mapping shouldn't abort parsing the file
+                                            logger.warning("Could not parse port mapping '%s' in %s: %s", port_mapping, full_path, e)
                 except Exception as e:
-                    print(f"Error parsing {full_path}: {e}")
+                    logger.exception("Error parsing %s: %s", full_path, e)
     return found_ports
 
 @app.get("/api/health")
@@ -145,7 +244,7 @@ class ScanRequest(BaseModel):
 
 @app.post("/scan")
 def scan_ports(req: ScanRequest):
-    print(f"Scanning paths: {req.paths}")
+    logger.info("Scanning paths: %s", req.paths)
     system = get_system_ports()
     docker_active = get_docker_ports()
     
@@ -180,7 +279,7 @@ class KillRequest(BaseModel):
 
 @app.post("/kill")
 def kill_process(req: KillRequest):
-    print(f"Received kill request: {req}")
+    logger.info("Received kill request: %s", req)
     
     if req.source == 'system':
         if not req.id:
@@ -191,10 +290,13 @@ def kill_process(req: KillRequest):
             if psutil.pid_exists(pid):
                 p = psutil.Process(pid)
                 p.terminate()
+                logger.info("Process %d terminated", pid)
                 return {"status": "success", "message": f"Process {pid} terminated"}
             else:
+                logger.warning("Process %d not found", pid)
                 return {"status": "error", "message": f"Process {pid} not found"}
         except Exception as e:
+            logger.exception("Error terminating process %s: %s", req.id, e)
             raise HTTPException(status_code=500, detail=str(e))
             
     elif req.source == 'docker_active':
@@ -207,10 +309,13 @@ def kill_process(req: KillRequest):
         try:
             container = client.containers.get(req.id)
             container.stop()
+            logger.info("Container %s stopped", req.id[:12])
             return {"status": "success", "message": f"Container {req.id[:12]} stopped"}
         except docker.errors.NotFound:
+            logger.warning("Container %s not found", req.id)
             return {"status": "error", "message": "Container not found"}
         except Exception as e:
+            logger.exception("Error stopping container %s: %s", req.id, e)
             raise HTTPException(status_code=500, detail=str(e))
             
     else:
@@ -223,6 +328,7 @@ class OpenRequest(BaseModel):
 @app.post("/open")
 def open_resource(req: OpenRequest):
     if not os.path.exists(req.path):
+         logger.warning("Open requested for missing path: %s", req.path)
          raise HTTPException(status_code=404, detail="File path not found")
 
     try:
@@ -231,8 +337,10 @@ def open_resource(req: OpenRequest):
         elif req.type == 'location':
             # Open explorer with file selected
             subprocess.Popen(['explorer', '/select,', req.path])
+        logger.info("Opened resource %s", req.path)
         return {"status": "success"}
     except Exception as e:
+        logger.exception("Error opening resource %s: %s", req.path, e)
         raise HTTPException(status_code=500, detail=str(e))
 
 # Serve static files (Frontend)
@@ -249,23 +357,74 @@ if os.path.exists(DIST_DIR):
     app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="static")
 
 @app.exception_handler(404)
-async def custom_404_handler(request, __):
-    # Fallback to index.html for SPA routing if file not found and strictly 404
-    # But StaticFiles with html=True usually handles root. 
-    # For client-side routing deep links, we might need a catch-all.
-    if os.path.exists(os.path.join(DIST_DIR, "index.html")):
-        return FileResponse(os.path.join(DIST_DIR, "index.html"))
-    return {"detail": "Not found"}
+async def custom_404_handler(request, exc):
+    """Handle 404s by serving SPA index.html when available, otherwise return JSON 404.
+    Also log the missing path for diagnostics."""
+    logger.warning("404 Not Found: %s %s", request.method, request.url)
+    index_path = os.path.join(DIST_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return JSONResponse({"detail": "Not found"}, status_code=404)
 
-def start_server():
+
+# Add a short alias for /health (some callers request /health instead of /api/health)
+@app.get("/health")
+def health_check_root():
+    logger.info("Health check (alias /health) called")
+    return health_check()
+
+
+# Global exception handler to ensure uncaught exceptions are logged and return 500 JSON
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.exception("Unhandled exception for request %s %s: %s", request.method, request.url, exc)
+    return JSONResponse({"detail": "Internal Server Error"}, status_code=500)
+
+def is_port_in_use(port: int, host: str = '127.0.0.1') -> bool:
+    """Return True if port is already in use on given host."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind((host, port))
+            return False
+        except OSError:
+            return True
+
+
+def find_free_port(host: str = '127.0.0.1') -> int:
+    """Ask OS for a free port by binding to port 0."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, 0))
+        return s.getsockname()[1]
+
+
+def choose_port(requested_port: int) -> int:
+    """Try requested_port; if busy (including TIME_WAIT), get a fresh free port from OS."""
+    if not is_port_in_use(requested_port):
+        logger.info("Using requested port %s", requested_port)
+        return requested_port
+    else:
+        logger.warning("Requested port %s is in use or in TIME_WAIT; getting a fresh free port from OS", requested_port)
+        new_port = find_free_port()
+        logger.info("Selected free port %s", new_port)
+        return new_port
+
+
+def start_server(port: int):
     import uvicorn
-    print(f"Starting PortRegistry Backend on port {args.port}...")
-    # Run uvicorn programmatically
-    uvicorn.run(app, host="127.0.0.1", port=args.port)
+    logger.info("Starting PortRegistry Backend on port %s...", port)
+    try:
+        # Run uvicorn programmatically
+        uvicorn.run(app, host="127.0.0.1", port=port)
+    except Exception as e:
+        logger.exception("Failed to start server on port %s: %s", port, e)
+        raise
 
 if __name__ == "__main__":
+    # Determine final port (respect PORT env / --port, but fall back if in use)
+    final_port = choose_port(args.port)
+
     # 1. Start Backend in a separate thread
-    t = threading.Thread(target=start_server, daemon=True)
+    t = threading.Thread(target=start_server, kwargs={'port': final_port}, daemon=True)
     t.start()
 
     # 2. Wait a bit for server to start (optional, but good for UX)
@@ -275,7 +434,8 @@ if __name__ == "__main__":
 
     # 3. Create the Native Window
     # Point it to localhost
-    url = f"http://127.0.0.1:{args.port}"
+    url = f"http://127.0.0.1:{final_port}"
+    logger.info("Opening webview to %s", url)
     
     webview.create_window(
         title="PortRegistry",
