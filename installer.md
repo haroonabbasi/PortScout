@@ -4,7 +4,7 @@ The repository includes an Inno Setup script you can use to produce a native Win
 
 - **Prerequisite**: Install Inno Setup (Inno Setup 6+). The compiler executable is `ISCC.exe`.
 - **Build steps**:
-    - Ensure you've built the frontend and created the `dist\portregistry.exe` binary (see steps above or run `./build_exe.ps1`).
+    - Ensure you've built the frontend and created the `dist\portregistry.exe` binary (see steps above or run `./buid.bat`).
     - From PowerShell (example):
         ```powershell
         # If Inno Setup is in your PATH
@@ -51,7 +51,7 @@ Note: Building native installers for macOS and Linux is best done on the target 
 ### CI and cross-platform builds
 
 - For reproducible builds and cross-platform packaging, use CI builders (GitHub Actions, Azure Pipelines, etc.) with runners per OS. Example strategy:
-    - Windows runner: run `./build_exe.ps1` then `ISCC` to produce the Inno Setup installer.
+    - Windows runner: run `./buid.bat` then `ISCC` to produce the Inno Setup installer.
     - macOS runner: run `npm run build`, PyInstaller, then `hdiutil` and notarize.
     - Linux runner: run `npm run build`, PyInstaller, then produce AppImage or distribution packages.
 

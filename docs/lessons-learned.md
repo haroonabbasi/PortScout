@@ -58,7 +58,7 @@ Packaging a Python + React application into a single executable was more complex
    - Different OS platforms require different PyInstaller flags
 
 2. **Build Scripts Are Essential**:
-   - Created `build_exe.ps1` to automate the entire build process
+   - Created `buid.bat` to automate the entire build process
    - Script handles: frontend build → PyInstaller → verification
    - Saves hours of manual work and reduces errors
 

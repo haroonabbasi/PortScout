@@ -18,7 +18,7 @@ The repository includes an Inno Setup script to produce a native Windows install
 
 1. **Build the executable**
    - Ensure you've built the frontend and created the `dist\portregistry.exe` binary
-   - You can use the provided build script: `.\build_exe.ps1`
+   - You can use the provided build script: `.\buid.bat`
 
 2. **Run the Inno Setup compiler**
    ```powershell
@@ -125,7 +125,7 @@ For reproducible builds and cross-platform packaging, use CI builders with runne
 ### Recommended Strategy
 
 Use GitHub Actions matrix runners:
-- **Windows runner**: Run `.\build_exe.ps1` then `ISCC` to produce Inno Setup installer
+- **Windows runner**: Run `.\buid.bat` then `ISCC` to produce Inno Setup installer
 - **macOS runner**: Run `npm run build`, PyInstaller, then `hdiutil` and notarize
 - **Linux runner**: Run `npm run build`, PyInstaller, then produce AppImage or packages
 

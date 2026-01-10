@@ -56,23 +56,33 @@ This app uses a **React Frontend** for the UI and a **Python Backend** for syste
 
 You can package PortRegistry into a single portable `.exe` file that contains both the backend and frontend.
 
-1.  **Build Frontend & Backend**:
-    Run the provided PowerShell script (Windows):
-    ```powershell
-    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass 
-    ./build_exe.ps1
-    ```
-    *Or manually:*
-    ```bash
-    npm run build
-    pyinstaller --name portregistry --noconsole --onefile --add-data "dist;dist" back-end/server.py
-    ```
+### Method 1: Quick Build (Recommended)
+Simply double-click the `build.bat` file or run it from command prompt:
+```bash
+build.bat
+```
+This script:
+- Builds the frontend (React/Vite)
+- Packages everything into a single executable using PyInstaller
+- Provides error handling and build verification
+- Shows build progress and file size information
 
-2.  **Run**:
-    The executable is created in the `dist/` folder.
-    ```bash
-    ./dist/portregistry.exe
-    ```
+### Method 2: Manual Build
+```bash
+# Build frontend
+npm run build
+
+# Build executable (PyInstaller)
+pyinstaller portregistry.spec --clean
+```
+
+### Output
+The executable is created in the `dist/` folder as `portregistry.exe` (typically ~50-80MB).
+
+### Build Components
+- **Frontend**: React/Vite application bundled into `dist/` folder
+- **Backend**: Python FastAPI server with system access
+- **Packaging**: PyInstaller creates a single file with no console window
 
 ### Creating an Installer (Windows - Inno Setup)
 

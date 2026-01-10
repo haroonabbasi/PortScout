@@ -30,7 +30,7 @@ Dependencies & tools
 
 Packaging notes
 - When packaging, frontend `dist/` is bundled into the executable using PyInstaller `--add-data`.
-- The repo includes `build_exe.ps1` to automate Windows packaging.
+- The repo includes `buid.bat` to automate Windows packaging.
 
 Troubleshooting
 - If Docker scanning fails, ensure Docker Desktop is running and accessible.
