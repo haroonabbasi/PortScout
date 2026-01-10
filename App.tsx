@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Settings as SettingsIcon, Terminal, HelpCircle, Github, Star, Coffee, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, Terminal, HelpCircle, Github, Star, Coffee, ExternalLink, Info } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import PythonSetup from './components/PythonSetup';
 import Settings, { PortRangeConfig } from './components/Settings';
@@ -10,6 +10,9 @@ const DEFAULT_RANGES: PortRangeConfig[] = [
   { start: 3000, label: 'Web Development' },
   { start: 8000, label: 'Application Services' }
 ];
+
+// App version from package.json (injected by Vite)
+const APP_VERSION = process.env.APP_VERSION || 'unknown';
 
 // Creator & Support Links - Update these URLs as needed
 const CREATOR_LINKS = {
@@ -34,14 +37,18 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col md:flex-row">
       {/* Sidebar */}
       <aside className="w-full md:w-64 bg-gray-900 border-r border-gray-800 flex-shrink-0 flex flex-col">
-        <div className="p-6 border-b border-gray-800">
+<div className="p-6 border-b border-gray-800">
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white">
-              P
-            </div>
+            <img src="/icon.png" alt="PortRegistry" className="w-8 h-8 rounded-lg" />
             PortRegistry
           </h1>
-          <p className="text-xs text-gray-500 mt-2">Docker & System Port Manager</p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-gray-500">Docker & System Port Manager</p>
+            <div className="flex items-center gap-1 text-xs text-gray-400">
+              <Info className="w-3 h-3" />
+              v{APP_VERSION}
+            </div>
+          </div>
         </div>
 
         <nav className="p-4 space-y-2 flex-1">

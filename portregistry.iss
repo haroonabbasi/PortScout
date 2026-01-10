@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "PortRegistry"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "2.1.0"
 #define MyAppPublisher "Haroon Abbasi"
 #define MyAppURL "https://github.com/haroonabbasi/port-registry" ; Your source code URL
 #define MyAppExeName "portregistry.exe"
@@ -21,7 +21,8 @@ PrivilegesRequired=lowest
 OutputDir=installer
 OutputBaseFilename=PortRegistry_Setup
 ; This ensures no "Setup" suffix is added to the installer exe
-SetupIconFile=assets\portregistory.ico 
+SetupIconFile=assets\portregistory.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
