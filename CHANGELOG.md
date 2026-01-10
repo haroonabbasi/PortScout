@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2025-01-10
+
+### Added
+- None specific for this release (see Changed/Fixed).
+
+### Changed
+- App version updated to 2.1.0 with improved version management.
+
+### Fixed
+- Fixed missing icon issue in Windows 11 app installed page.
+- Fixed JavaScript error: "SyntaxError: Identifier 'core' has already been declared".
+- Disabled automatic workflow trigger to prevent unintended releases.
+
+### Security / CI
+- Workflow automation adjustments for better release control.
+
+
 ## [2.0.0] - 2025-12-27
 
 ### Added
