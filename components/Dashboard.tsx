@@ -169,7 +169,7 @@ const Dashboard: React.FC<DashboardProps> = ({ ranges = [{ start: 3000, label: '
                     </div>
 
                     {/* Mode Toggle */}
-                    <div className="flex items-center gap-4 px-1">
+                    {/* <div className="flex items-center gap-4 px-1">
                         <button
                             onClick={() => setIsLive(!isLive)}
                             className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${isLive
@@ -185,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({ ranges = [{ start: 3000, label: '
                                 (Backend not detected on localhost:8000)
                             </span>
                         )}
-                    </div>
+                    </div> */}
                 </div>
 
                 <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 flex items-center justify-between">
